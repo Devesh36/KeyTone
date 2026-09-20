@@ -26,6 +26,13 @@ export function Home({ snapshot, busy, onEngine, onVolume, onNavigate, onTest }:
         </div>
       </header>
 
+      {snapshot.permission === "missing" && (
+        <section className="keyboard-access-alert" role="alert">
+          <div><strong>Keyboard access is off</strong><span>macOS is blocking global keystrokes, so typing cannot trigger sounds.</span></div>
+          <button type="button" onClick={() => onNavigate("settings")}>Fix access <ArrowRight size={15} /></button>
+        </section>
+      )}
+
       <section className="engine-strip">
         <div><span className="section-kicker">ENGINE</span><strong>{settings.engineEnabled ? "Sound follows your keyboard" : "Keystrokes are silent"}</strong></div>
         <div className="engine-control"><span className={settings.engineEnabled ? "online" : ""}>{settings.engineEnabled ? "ON" : "OFF"}</span><Toggle checked={settings.engineEnabled} onChange={onEngine} label="Sound engine" disabled={busy} /></div>

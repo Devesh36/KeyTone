@@ -6,9 +6,10 @@ interface SettingsProps {
   snapshot: AppSnapshot;
   onPreferences: (release: boolean, repeats: boolean, startup: boolean, keepRunning: boolean) => void;
   onOutput: (name: string | null) => void;
+  onKeyboardAccess: () => void;
 }
 
-export function Settings({ snapshot, onPreferences, onOutput }: SettingsProps) {
+export function Settings({ snapshot, onPreferences, onOutput, onKeyboardAccess }: SettingsProps) {
   const s = snapshot.settings;
   const preference = (patch: Partial<Pick<typeof s, "releaseSounds" | "playRepeats" | "launchAtStartup" | "keepRunningOnClose">>) => {
     onPreferences(patch.releaseSounds ?? s.releaseSounds, patch.playRepeats ?? s.playRepeats, patch.launchAtStartup ?? s.launchAtStartup, patch.keepRunningOnClose ?? s.keepRunningOnClose);
@@ -32,7 +33,14 @@ export function Settings({ snapshot, onPreferences, onOutput }: SettingsProps) {
         <section className="settings-section privacy-section">
           <div className="settings-heading"><LockKeyhole size={20} /><div><h2>Keyboard access & privacy</h2><p>Status: <strong>{snapshot.permission}</strong></p></div></div>
           <p>Keytone receives individual physical key press/release events and immediately turns them into audio triggers. It never builds words, stores key history, sends events, or uses a network service.</p>
-          <div className="permission-help">{snapshot.permissionInstructions}<ExternalLink size={15} /></div>
+          <div className={`permission-help permission-${snapshot.permission}`}>
+            <span>{snapshot.permissionInstructions}</span>
+            {snapshot.permission === "missing" ? (
+              <button type="button" onClick={onKeyboardAccess}>Open Input Monitoring <ExternalLink size={14} /></button>
+            ) : (
+              <span className="permission-ready">Keyboard listening is ready</span>
+            )}
+          </div>
         </section>
       </div>
     </div>

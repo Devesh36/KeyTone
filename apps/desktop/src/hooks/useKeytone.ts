@@ -11,6 +11,14 @@ export function useKeytone() {
     api.getState().then(setSnapshot).catch((reason: unknown) => setError(String(reason)));
   }, []);
 
+  useEffect(() => {
+    if (snapshot?.permission !== "missing") return;
+    const interval = window.setInterval(() => {
+      api.getState().then(setSnapshot).catch(() => undefined);
+    }, 1500);
+    return () => window.clearInterval(interval);
+  }, [snapshot?.permission]);
+
   const act = useCallback(async (operation: () => Promise<AppSnapshot>) => {
     setBusy(true);
     setError(null);

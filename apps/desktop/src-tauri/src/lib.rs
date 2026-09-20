@@ -120,6 +120,14 @@ fn test_sound(runtime: State<'_, AppRuntime>) {
     });
 }
 
+#[tauri::command]
+fn open_keyboard_settings(runtime: State<'_, AppRuntime>) -> Result<AppSnapshot, String> {
+    runtime
+        .open_keyboard_settings()
+        .map_err(|error| error.to_string())?;
+    Ok(runtime.snapshot())
+}
+
 fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let engine = CheckMenuItem::with_id(app, "engine", "Engine Enabled", true, true, None::<&str>)?;
     let creamy = MenuItem::with_id(app, "pack-creamy", "Creamy", true, None::<&str>)?;
@@ -252,6 +260,7 @@ pub fn run() {
             reset_effects,
             select_output_device,
             test_sound,
+            open_keyboard_settings,
         ])
         .run(tauri::generate_context!());
     if let Err(error) = result {

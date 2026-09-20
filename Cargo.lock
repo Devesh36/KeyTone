@@ -1929,7 +1929,7 @@ dependencies = [
 
 [[package]]
 name = "keytone-audio"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arc-swap",
  "cpal",
@@ -1946,7 +1946,7 @@ dependencies = [
 
 [[package]]
 name = "keytone-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1954,7 +1954,7 @@ dependencies = [
 
 [[package]]
 name = "keytone-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "keytone-audio",
  "keytone-core",
@@ -1974,14 +1974,14 @@ dependencies = [
 
 [[package]]
 name = "keytone-dsp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "keytone-core",
 ]
 
 [[package]]
 name = "keytone-input"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "keytone-core",
  "objc2-core-foundation",
@@ -1993,7 +1993,7 @@ dependencies = [
 
 [[package]]
 name = "keytone-packs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hound",
  "keytone-core",

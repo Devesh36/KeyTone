@@ -35,13 +35,13 @@
 
 ## Download
 
-Keytone v0.1.0 is available as a native desktop application. Choose your platform or visit the [latest GitHub release](https://github.com/Devesh36/KeyTone/releases/latest) for every installer format.
+Keytone v0.1.1 is available as a native desktop application. Choose your platform or visit the [latest GitHub release](https://github.com/Devesh36/KeyTone/releases/latest) for every installer format.
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| macOS | [Universal DMG](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_universal.dmg) | macOS 11+, Apple Silicon or Intel |
-| Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_x64_en-US.msi) | Windows 10+ |
-| Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_amd64.AppImage) | Modern x86_64 distribution |
+| macOS | [Universal DMG](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_universal.dmg) | macOS 11+, Apple Silicon or Intel |
+| Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_x64_en-US.msi) | Windows 10+ |
+| Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_amd64.AppImage) | Modern x86_64 distribution |
 
 ### Opening Keytone on macOS
 
@@ -52,15 +52,15 @@ Keytone v0.1.0 is available as a native desktop application. Choose your platfor
 2. Open **System Settings → Privacy & Security**.
 3. Scroll to the Security section and click **Open Anyway** beside the Keytone message.
 4. Authenticate with Touch ID or your password, then click **Open**.
-5. Enable Keytone under **Privacy & Security → Input Monitoring**, then fully restart the app.
+5. Enable Keytone under **Privacy & Security → Input Monitoring**. If it already appears enabled after replacing an older build, turn it off and back on. Keytone reconnects automatically.
 
 Do not disable Gatekeeper globally. See [Apple's official Open Anyway instructions](https://support.apple.com/en-gb/102445) for more information.
 
 On Linux, make the AppImage executable before launching it:
 
 ```bash
-chmod +x Keytone_0.1.0_amd64.AppImage
-./Keytone_0.1.0_amd64.AppImage
+chmod +x Keytone_0.1.1_amd64.AppImage
+./Keytone_0.1.1_amd64.AppImage
 ```
 
 ## Why Keytone?
@@ -129,7 +129,7 @@ See the [preset format](docs/presets.md).
 
 ### macOS
 
-The current release may require the one-time [Open Anyway procedure](#opening-keytone-on-macos) described above. Global key monitoring separately requires **Input Monitoring** access. Open **System Settings → Privacy & Security → Input Monitoring**, enable Keytone, then fully restart the app. Keytone preflights this permission and shows a visible warning when it is missing.
+The current release may require the one-time [Open Anyway procedure](#opening-keytone-on-macos) described above. Global key monitoring separately requires **Input Monitoring** access. Keytone preflights this permission, shows a visible repair action when it is missing, and reconnects its listener automatically after access is enabled. When replacing an older ad-hoc-signed build, toggle Keytone off and back on in Input Monitoring so macOS authorizes the new binary.
 
 ### Windows
 

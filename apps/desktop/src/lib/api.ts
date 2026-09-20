@@ -79,5 +79,6 @@ export const api = {
   },
   selectOutputDevice: (name: string | null) => command<AppSnapshot>("select_output_device", { name }),
   testSound: () => isTauri() ? command<void>("test_sound") : Promise.resolve(),
+  openKeyboardSettings: () => isTauri() ? command<AppSnapshot>("open_keyboard_settings") : Promise.resolve(browserState),
   isTauri,
 };

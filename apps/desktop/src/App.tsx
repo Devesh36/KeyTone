@@ -53,7 +53,7 @@ export default function App() {
     home: <Home snapshot={snapshot} busy={busy} onEngine={(enabled) => void act(() => api.setEngine(enabled))} onVolume={(masterVolume) => { const next = { ...draft, masterVolume }; setDraft(next); void commitEffects(next); }} onNavigate={setPage} onTest={() => void api.testSound()} />,
     lab: <SoundLab snapshot={snapshot} effects={draft} setEffects={(next) => { setDraft(next); void api.updateEffects(next).then(setSnapshot); }} commitEffects={(next) => void commitEffects(next)} onReset={() => void act(() => api.resetEffects()).then((next) => setDraft(next.settings.effects))} onSave={() => void savePreset()} onDuplicate={() => { const name = snapshot.settings.activePreset; if (name) void act(() => api.duplicatePreset(name)); }} onLoadPreset={(name) => void act(() => api.loadPreset(name)).then((next) => setDraft(next.settings.effects))} />,
     packs: <Packs snapshot={snapshot} onActivate={(id) => void act(() => api.activatePack(id))} onPreview={(id) => void api.previewPack(id)} onImportFolder={() => void importPack(true)} onImportManifest={() => void importPack(false)} />,
-    settings: <Settings snapshot={snapshot} onPreferences={(release, repeats, startup, keepRunning) => void act(() => api.updatePreferences(release, repeats, startup, keepRunning))} onOutput={(name) => void act(() => api.selectOutputDevice(name))} />,
+    settings: <Settings snapshot={snapshot} onPreferences={(release, repeats, startup, keepRunning) => void act(() => api.updatePreferences(release, repeats, startup, keepRunning))} onOutput={(name) => void act(() => api.selectOutputDevice(name))} onKeyboardAccess={() => void act(() => api.openKeyboardSettings())} />,
   }[page];
 
   return (

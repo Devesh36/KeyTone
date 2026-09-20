@@ -3,6 +3,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use keytone_core::{KeyCode, KeyEvent};
 use rdev::Key;
@@ -40,6 +41,7 @@ pub trait InputBackend: Send + 'static {
         active: Arc<AtomicBool>,
         play_repeats: Arc<AtomicBool>,
         emit: impl Fn(KeyEvent) + Send + 'static,
+        on_ready: impl Fn() + Send + 'static,
     ) -> Result<(), InputError>;
 }
 
@@ -52,15 +54,17 @@ impl InputBackend for NativeInputBackend {
         active: Arc<AtomicBool>,
         play_repeats: Arc<AtomicBool>,
         emit: impl Fn(KeyEvent) + Send + 'static,
+        on_ready: impl Fn() + Send + 'static,
     ) -> Result<(), InputError> {
         #[cfg(target_os = "macos")]
         {
-            macos::listen(active, play_repeats, emit)
+            macos::listen(active, play_repeats, emit, on_ready)
         }
 
         #[cfg(not(target_os = "macos"))]
         {
             let mut pressed = HashSet::new();
+            on_ready();
             rdev::listen(move |event| {
                 if !active.load(Ordering::Relaxed) {
                     return;
@@ -109,22 +113,46 @@ pub struct InputMonitor {
 }
 
 impl InputMonitor {
-    /// Starts one process-lifetime listener. Stopping disables delivery immediately.
+    /// Starts a process-lifetime listener. Setup failures are retried so granting
+    /// an OS permission while Keytone is open does not require an app restart.
     #[must_use]
     pub fn start(
         play_repeats: bool,
-        emit: impl Fn(KeyEvent) + Send + 'static,
-        on_error: impl Fn(InputError) + Send + 'static,
+        emit: impl Fn(KeyEvent) + Send + Sync + 'static,
+        on_ready: impl Fn() + Send + Sync + 'static,
+        on_error: impl Fn(InputError) + Send + Sync + 'static,
     ) -> Self {
         let active = Arc::new(AtomicBool::new(true));
         let play_repeats = Arc::new(AtomicBool::new(play_repeats));
         let thread_active = Arc::clone(&active);
         let thread_repeats = Arc::clone(&play_repeats);
+        let emit = Arc::new(emit);
+        let on_ready = Arc::new(on_ready);
+        let on_error = Arc::new(on_error);
         thread::Builder::new()
             .name("keytone-global-input".into())
             .spawn(move || {
-                if let Err(error) = NativeInputBackend.run(thread_active, thread_repeats, emit) {
-                    on_error(error);
+                while thread_active.load(Ordering::Acquire) {
+                    let attempt_emit = Arc::clone(&emit);
+                    let attempt_ready = Arc::clone(&on_ready);
+                    let result = NativeInputBackend.run(
+                        Arc::clone(&thread_active),
+                        Arc::clone(&thread_repeats),
+                        move |event| attempt_emit(event),
+                        move || attempt_ready(),
+                    );
+                    if let Err(error) = result {
+                        on_error(error);
+                    }
+
+                    // Sleep in short slices so dropping the monitor stops a failed
+                    // listener promptly while still avoiding a busy retry loop.
+                    for _ in 0..10 {
+                        if !thread_active.load(Ordering::Acquire) {
+                            return;
+                        }
+                        thread::sleep(Duration::from_millis(100));
+                    }
                 }
             })
             .ok();
@@ -178,7 +206,7 @@ pub fn request_permission() {
 pub const fn permission_instructions() -> &'static str {
     #[cfg(target_os = "macos")]
     {
-        "Open System Settings → Privacy & Security → Input Monitoring, enable Keytone, then restart Keytone."
+        "Open System Settings → Privacy & Security → Input Monitoring and enable Keytone. If it is already enabled, turn it off and back on. Keytone reconnects automatically."
     }
     #[cfg(target_os = "windows")]
     {

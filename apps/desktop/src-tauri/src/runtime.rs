@@ -44,7 +44,11 @@ pub enum RuntimeError {
     InvalidImportPath,
     #[error("could not serialize settings: {0}")]
     Serialize(#[from] serde_json::Error),
+    #[error("could not open keyboard privacy settings: {0}")]
+    OpenPermissionSettings(std::io::Error),
 }
+
+const KEYBOARD_WARNING_PREFIX: &str = "Keyboard access";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,23 +110,36 @@ impl AppRuntime {
         let initial_permission = keytone_input::permission_state();
         if initial_permission == PermissionState::Missing {
             request_permission();
-            warnings.push(permission_instructions().into());
+            warnings.push(format!(
+                "{KEYBOARD_WARNING_PREFIX} is required. {}",
+                permission_instructions()
+            ));
         }
         let permission = Arc::new(AtomicU8::new(permission_code(initial_permission)));
         let warnings = Arc::new(Mutex::new(warnings));
         let input_audio = Arc::clone(&audio);
+        let ready_permission = Arc::clone(&permission);
+        let ready_warnings = Arc::clone(&warnings);
         let error_permission = Arc::clone(&permission);
         let error_warnings = Arc::clone(&warnings);
         let input = InputMonitor::start(
             settings.settings.play_repeats,
             move |event| input_audio.trigger(event),
+            move || {
+                ready_permission
+                    .store(permission_code(PermissionState::Granted), Ordering::Release);
+                clear_keyboard_warnings(&ready_warnings);
+            },
             move |error| {
                 error_permission
                     .store(permission_code(PermissionState::Missing), Ordering::Release);
-                error_warnings.lock().push(format!(
-                    "Keyboard monitoring is unavailable: {error}. {}",
-                    permission_instructions()
-                ));
+                set_keyboard_warning(
+                    &error_warnings,
+                    format!(
+                        "{KEYBOARD_WARNING_PREFIX} is unavailable: {error}. {}",
+                        permission_instructions()
+                    ),
+                );
             },
         );
 
@@ -147,6 +164,7 @@ impl AppRuntime {
 
     #[must_use]
     pub fn snapshot(&self) -> AppSnapshot {
+        self.refresh_permission();
         let envelope = self.settings.lock().clone();
         let mut packs = self
             .packs
@@ -165,6 +183,35 @@ impl AppRuntime {
             permission_instructions: permission_instructions(),
             warnings: self.warnings.lock().clone(),
         }
+    }
+
+    /// Re-checks the live OS permission instead of relying on the state from
+    /// process startup. This matters when access is granted while Keytone is open.
+    pub fn refresh_permission(&self) {
+        let detected = keytone_input::permission_state();
+        if detected == PermissionState::Unknown {
+            return;
+        }
+        self.permission
+            .store(permission_code(detected), Ordering::Release);
+        if detected == PermissionState::Granted {
+            clear_keyboard_warnings(&self.warnings);
+        }
+    }
+
+    pub fn open_keyboard_settings(&self) -> Result<(), RuntimeError> {
+        request_permission();
+        self.refresh_permission();
+
+        #[cfg(target_os = "macos")]
+        {
+            std::process::Command::new("/usr/bin/open")
+                .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+                .spawn()
+                .map_err(RuntimeError::OpenPermissionSettings)?;
+        }
+
+        Ok(())
     }
 
     pub fn set_engine(&self, enabled: bool) -> Result<(), RuntimeError> {
@@ -450,6 +497,18 @@ const fn permission_label(value: u8) -> &'static str {
         2 => "missing",
         _ => "unknown",
     }
+}
+
+fn clear_keyboard_warnings(warnings: &Mutex<Vec<String>>) {
+    warnings
+        .lock()
+        .retain(|warning| !warning.starts_with(KEYBOARD_WARNING_PREFIX));
+}
+
+fn set_keyboard_warning(warnings: &Mutex<Vec<String>>, warning: String) {
+    let mut warnings = warnings.lock();
+    warnings.retain(|existing| !existing.starts_with(KEYBOARD_WARNING_PREFIX));
+    warnings.push(warning);
 }
 
 #[cfg(test)]

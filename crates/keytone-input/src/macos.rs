@@ -38,6 +38,7 @@ pub(super) fn listen(
     active: Arc<AtomicBool>,
     play_repeats: Arc<AtomicBool>,
     emit: impl Fn(KeyEvent) + Send + 'static,
+    on_ready: impl Fn() + Send + 'static,
 ) -> Result<(), InputError> {
     let context = Box::new(CallbackContext {
         active,
@@ -88,6 +89,7 @@ pub(super) fn listen(
     let common_modes = unsafe { kCFRunLoopCommonModes };
     run_loop.add_source(Some(&source), common_modes);
     CGEvent::tap_enable(&tap, true);
+    on_ready();
     CFRunLoop::run();
 
     // SAFETY: the run loop has exited and the source/tap are about to drop, so
