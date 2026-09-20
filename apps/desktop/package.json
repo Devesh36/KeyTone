@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
+    "test": "node --test tests/*.test.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

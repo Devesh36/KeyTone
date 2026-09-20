@@ -1,4 +1,5 @@
-import { Check, FolderPlus, Play, Waves } from "lucide-react";
+import { FolderPlus } from "lucide-react";
+import { PackCard } from "../components/PackCard";
 import type { AppSnapshot } from "../types";
 
 interface PacksProps {
@@ -21,21 +22,9 @@ export function Packs({ snapshot, onActivate, onPreview, onImportFolder, onImpor
       </header>
       <div className="library-summary"><span>{snapshot.packs.length} installed packs</span><p>Local files only · Keytone Sound Pack v1</p></div>
       <div className="pack-grid">
-        {snapshot.packs.map((pack, index) => {
-          const active = pack.id === snapshot.settings.activePack;
-          return (
-            <article className={`pack-card ${active ? "active" : ""}`} key={pack.id}>
-              <div className={`pack-hero pack-${pack.id}`}><span className="pack-index">0{index + 1}</span><Waves size={42} strokeWidth={1} /></div>
-              <div className="pack-content">
-                <div className="pack-title"><div><h2>{pack.name}</h2><p>by {pack.author}</p></div>{active && <span className="active-chip"><Check size={12} /> Active</span>}</div>
-                <p className="pack-description">{pack.description}</p>
-                <div className="tag-row">{pack.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-                <div className="pack-meta"><span>{pack.license}</span><span>{pack.hasReleaseSamples ? "Press + release" : "Press only"}</span></div>
-                <div className="pack-actions"><button className="preview-button" onClick={() => onPreview(pack.id)}><Play size={15} fill="currentColor" /> Preview</button><button className="activate-button" disabled={active} onClick={() => onActivate(pack.id)}>{active ? "In use" : "Activate"}</button></div>
-              </div>
-            </article>
-          );
-        })}
+        {snapshot.packs.map((pack, index) => (
+          <PackCard key={pack.id} pack={pack} index={index} active={pack.id === snapshot.settings.activePack} onActivate={onActivate} onPreview={onPreview} />
+        ))}
       </div>
     </div>
   );

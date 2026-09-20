@@ -33,4 +33,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm --dir apps/desktop test
       - run: pnpm build
