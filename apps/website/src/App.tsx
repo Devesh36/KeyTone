@@ -9,6 +9,7 @@ import {
   AudioLines,
   Check,
   CircleAlert,
+  Copy,
   Download,
   Github,
   Laptop,
@@ -26,6 +27,7 @@ import {
 const REPOSITORY_URL = "https://github.com/Devesh36/KeyTone";
 const RELEASES_URL = `${REPOSITORY_URL}/releases/latest`;
 const RELEASE_API_URL = "https://api.github.com/repos/Devesh36/KeyTone/releases/latest";
+const RAW_REPOSITORY_URL = "https://raw.githubusercontent.com/Devesh36/KeyTone/main";
 
 type DownloadOption = {
   platform: Platform;
@@ -58,6 +60,12 @@ const downloadOptions: DownloadOption[] = [
     icon: Terminal,
   },
 ];
+
+const installCommands: Record<Platform, string> = {
+  macos: `curl -fsSL ${RAW_REPOSITORY_URL}/install.sh | sh`,
+  windows: `irm ${RAW_REPOSITORY_URL}/install.ps1 | iex`,
+  linux: `curl -fsSL ${RAW_REPOSITORY_URL}/install.sh | sh`,
+};
 
 const features = [
   {
@@ -108,6 +116,8 @@ function App() {
   const [demoProfile, setDemoProfile] = useState(0);
   const [release, setRelease] = useState<ReleaseResponse | null>(null);
   const platform = useMemo(() => typeof window === "undefined" || typeof navigator === "undefined" ? null : detectPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints), []);
+  const [commandPlatform, setCommandPlatform] = useState<Platform>(platform ?? "macos");
+  const [commandCopied, setCommandCopied] = useState(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -138,6 +148,12 @@ function App() {
 
   const platformAsset = release && platform ? pickAsset(platform, release.assets) : undefined;
   const platformName = downloadOptions.find((option) => option.platform === platform)?.title ?? "your OS";
+
+  const copyInstallCommand = async () => {
+    await navigator.clipboard.writeText(installCommands[commandPlatform]);
+    setCommandCopied(true);
+    window.setTimeout(() => setCommandCopied(false), 1800);
+  };
 
   return (
     <div className="site-shell" id="top">
@@ -317,6 +333,42 @@ function App() {
             {release ? `Latest release: ${release.tag_name}` : "Installers are published on GitHub Releases."}
             {" · "}<a href={`${REPOSITORY_URL}#installation`}>Build from source <ArrowUpRight size={12} /></a>
           </p>
+          <div className="cli-install" aria-labelledby="cli-install-title">
+            <div className="cli-install-copy">
+              <span className="eyebrow">COMMAND LINE</span>
+              <h3 id="cli-install-title">Install without leaving your terminal.</h3>
+              <p>The installer finds the latest release, downloads the right package, and starts the native install flow.</p>
+            </div>
+            <div className="terminal-card">
+              <div className="terminal-toolbar">
+                <div className="terminal-dots" aria-hidden="true"><i /><i /><i /></div>
+                <div className="platform-tabs" role="group" aria-label="Choose operating system">
+                  {downloadOptions.map((option) => (
+                    <button
+                      className={commandPlatform === option.platform ? "platform-tab platform-tab-active" : "platform-tab"}
+                      key={option.platform}
+                      type="button"
+                      onClick={() => {
+                        setCommandPlatform(option.platform);
+                        setCommandCopied(false);
+                      }}
+                    >
+                      {option.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="command-line">
+                <span aria-hidden="true">$</span>
+                <code>{installCommands[commandPlatform]}</code>
+                <button type="button" onClick={copyInstallCommand} aria-label="Copy install command">
+                  {commandCopied ? <Check size={17} /> : <Copy size={17} />}
+                  <span>{commandCopied ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+              <p>Review the scripts on <a href={`${REPOSITORY_URL}/blob/main/${commandPlatform === "windows" ? "install.ps1" : "install.sh"}`} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={11} /></a> before running them.</p>
+            </div>
+          </div>
           <aside className="mac-install-note" aria-labelledby="mac-install-title">
             <CircleAlert aria-hidden="true" />
             <div>

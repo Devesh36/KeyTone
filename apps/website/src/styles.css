@@ -174,6 +174,29 @@ p { overflow-wrap: break-word; }
 .download-card-foot { margin-top: auto; padding-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #b0bca1; font: 400 10px var(--mono); }
 .release-note { margin-top: 22px; color: #a0a995; text-align: center; font: 400 10px/1.8 var(--mono); }
 .release-note a { display: inline-flex; align-items: center; min-height: 44px; gap: 4px; color: #d2dac8; }
+.release-note svg { vertical-align: -2px; }
+.cli-install { max-width: 980px; margin: 48px auto 0; padding: 34px; display: grid; grid-template-columns: .7fr 1.3fr; gap: 38px; align-items: center; border: 1px solid #343d2b; border-radius: 10px; background: #11160e; }
+.cli-install-copy h3 { margin: 12px 0 13px; font-size: 26px; line-height: 1.15; letter-spacing: -.035em; }
+.cli-install-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.terminal-card { min-width: 0; overflow: hidden; border: 1px solid #39432f; border-radius: 8px; background: #0b0f09; box-shadow: 0 18px 45px rgba(0,0,0,.25); }
+.terminal-toolbar { min-height: 48px; padding: 8px 11px 8px 15px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 1px solid #2a3422; background: #141a11; }
+.terminal-dots { display: flex; gap: 6px; }
+.terminal-dots i { width: 7px; height: 7px; border-radius: 50%; background: #495143; }
+.terminal-dots i:nth-child(2) { background: #65705a; }
+.terminal-dots i:nth-child(3) { background: #82934b; }
+.platform-tabs { display: flex; gap: 3px; }
+.platform-tab { padding: 7px 10px; border: 0; border-radius: 5px; color: #9da895; background: transparent; font-family: var(--mono); font-size: 8px; letter-spacing: .04em; cursor: pointer; }
+.platform-tab:hover { color: var(--ink); }
+.platform-tab-active { color: #171e0b; background: var(--acid); }
+.platform-tab:focus-visible, .command-line button:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+.command-line { min-height: 88px; padding: 20px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 10px; }
+.command-line > span { color: var(--acid); font-family: var(--mono); font-size: 13px; }
+.command-line code { overflow-x: auto; color: #d2dac8; font-family: var(--mono); font-size: 10px; line-height: 1.6; white-space: nowrap; scrollbar-width: thin; }
+.command-line button { min-width: 67px; padding: 8px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #3e4934; border-radius: 6px; color: #b2bba7; background: #171e13; font-family: var(--mono); font-size: 8px; cursor: pointer; }
+.command-line button:hover { color: var(--ink); border-color: #5a5951; }
+.terminal-card > p { margin: 0; padding: 10px 20px 13px; border-top: 1px solid #2a3422; color: #929d88; font-size: 9px; line-height: 1.6; }
+.terminal-card > p a { color: #c5cebb; }
+.terminal-card > p svg { vertical-align: -2px; }
 .mac-install-note { max-width: 850px; margin: 32px auto 0; padding: 28px; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 20px; border: 1px solid #51442f; border-radius: 10px; background: #18160f; }
 .mac-install-note > svg { width: 23px; color: var(--orange); }
 .mac-install-note h3 { margin: 8px 0 12px; font-size: 20px; letter-spacing: -.025em; }
@@ -212,6 +235,7 @@ footer { max-width: 1208px; width: calc(100% - 2 * var(--gutter)); margin: auto;
   .feature-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
   .lab-copy ul { grid-template-columns: 1fr; }
   .mixer { margin: 24px 24px 24px 0; }
+  .cli-install { grid-template-columns: 1fr; }
 }
 @media (max-width: 960px) {
   .nav-wrap { min-height: 68px; gap: 16px; }
@@ -277,6 +301,13 @@ footer { max-width: 1208px; width: calc(100% - 2 * var(--gutter)); margin: auto;
   .download-card { min-height: 245px; padding: 24px; }
   .download-card > svg { margin-bottom: 20px; }
   .recommended { position: absolute; top: 24px; right: 24px; }
+  .cli-install { margin-top: 42px; padding: 23px 17px; gap: 25px; }
+  .terminal-toolbar { align-items: flex-start; flex-direction: column; }
+  .terminal-dots { padding: 5px 3px 0; }
+  .platform-tabs { width: 100%; }
+  .platform-tab { flex: 1; }
+  .command-line { grid-template-columns: auto minmax(0,1fr); padding: 18px 15px; }
+  .command-line button { grid-column: 1 / -1; width: 100%; }
   .mac-install-note { padding: 22px; grid-template-columns: minmax(0,1fr); gap: 12px; }
   .footer-top { flex-direction: column; align-items: flex-start; gap: 16px; }
   .footer-bottom { margin-top: 22px; }
