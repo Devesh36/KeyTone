@@ -12,12 +12,21 @@ export function useKeytone() {
   }, []);
 
   useEffect(() => {
-    if (snapshot?.permission !== "missing") return;
-    const interval = window.setInterval(() => {
-      api.getState().then(setSnapshot).catch(() => undefined);
-    }, 1500);
-    return () => window.clearInterval(interval);
-  }, [snapshot?.permission]);
+    let cancelled = false;
+    let timer: number;
+    const refresh = async () => {
+      try {
+        const health = await api.getHealth();
+        if (!cancelled) setSnapshot((current) => current ? { ...current, ...health } : current);
+      } catch {
+        // Commands show actionable errors. Retry transient status failures.
+      } finally {
+        if (!cancelled) timer = window.setTimeout(() => void refresh(), 1500);
+      }
+    };
+    void refresh();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, []);
 
   const act = useCallback(async (operation: () => Promise<AppSnapshot>) => {
     setBusy(true);

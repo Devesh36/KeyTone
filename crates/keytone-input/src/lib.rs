@@ -64,8 +64,12 @@ impl InputBackend for NativeInputBackend {
         #[cfg(not(target_os = "macos"))]
         {
             let mut pressed = HashSet::new();
-            on_ready();
+            let mut ready = false;
             rdev::listen(move |event| {
+                if !ready {
+                    ready = true;
+                    on_ready();
+                }
                 if !active.load(Ordering::Relaxed) {
                     return;
                 }
@@ -110,6 +114,8 @@ impl InputBackend for NativeInputBackend {
 pub struct InputMonitor {
     active: Arc<AtomicBool>,
     play_repeats: Arc<AtomicBool>,
+    connected: Arc<AtomicBool>,
+    received_event: Arc<AtomicBool>,
 }
 
 impl InputMonitor {
@@ -122,27 +128,57 @@ impl InputMonitor {
         on_ready: impl Fn() + Send + Sync + 'static,
         on_error: impl Fn(InputError) + Send + Sync + 'static,
     ) -> Self {
+        Self::start_with_backend(
+            play_repeats,
+            emit,
+            on_ready,
+            on_error,
+            NativeInputBackend::default,
+        )
+    }
+
+    fn start_with_backend<B: InputBackend>(
+        play_repeats: bool,
+        emit: impl Fn(KeyEvent) + Send + Sync + 'static,
+        on_ready: impl Fn() + Send + Sync + 'static,
+        on_error: impl Fn(InputError) + Send + Sync + 'static,
+        backend: impl Fn() -> B + Send + 'static,
+    ) -> Self {
         let active = Arc::new(AtomicBool::new(true));
+        let connected = Arc::new(AtomicBool::new(false));
+        let received_event = Arc::new(AtomicBool::new(false));
         let play_repeats = Arc::new(AtomicBool::new(play_repeats));
         let thread_active = Arc::clone(&active);
         let thread_repeats = Arc::clone(&play_repeats);
+        let thread_connected = Arc::clone(&connected);
+        let thread_received = Arc::clone(&received_event);
         let emit = Arc::new(emit);
         let on_ready = Arc::new(on_ready);
         let on_error = Arc::new(on_error);
-        thread::Builder::new()
+        let thread_error = Arc::clone(&on_error);
+        if let Err(error) = thread::Builder::new()
             .name("keytone-global-input".into())
             .spawn(move || {
                 while thread_active.load(Ordering::Acquire) {
                     let attempt_emit = Arc::clone(&emit);
                     let attempt_ready = Arc::clone(&on_ready);
-                    let result = NativeInputBackend.run(
+                    let attempt_connected = Arc::clone(&thread_connected);
+                    let attempt_received = Arc::clone(&thread_received);
+                    let result = backend().run(
                         Arc::clone(&thread_active),
                         Arc::clone(&thread_repeats),
-                        move |event| attempt_emit(event),
-                        move || attempt_ready(),
+                        move |event| {
+                            attempt_received.store(true, Ordering::Release);
+                            attempt_emit(event);
+                        },
+                        move || {
+                            attempt_connected.store(true, Ordering::Release);
+                            attempt_ready();
+                        },
                     );
+                    thread_connected.store(false, Ordering::Release);
                     if let Err(error) = result {
-                        on_error(error);
+                        thread_error(error);
                     }
 
                     // Sleep in short slices so dropping the monitor stops a failed
@@ -155,11 +191,28 @@ impl InputMonitor {
                     }
                 }
             })
-            .ok();
+        {
+            on_error(InputError::Listener(format!(
+                "could not start listener thread: {error}"
+            )));
+        }
         Self {
             active,
             play_repeats,
+            connected,
+            received_event,
         }
+    }
+
+    #[must_use]
+    pub fn is_connected(&self) -> bool {
+        self.connected.load(Ordering::Acquire)
+    }
+
+    /// Only a boolean for troubleshooting; no key identity or history is kept.
+    #[must_use]
+    pub fn has_received_event(&self) -> bool {
+        self.received_event.load(Ordering::Acquire)
     }
 
     pub fn set_active(&self, active: bool) {
@@ -206,7 +259,7 @@ pub fn request_permission() {
 pub const fn permission_instructions() -> &'static str {
     #[cfg(target_os = "macos")]
     {
-        "Open System Settings → Privacy & Security → Input Monitoring and enable Keytone. If it is already enabled, turn it off and back on. Keytone reconnects automatically."
+        "Enable Keytone in System Settings → Privacy & Security → Input Monitoring, then click Restart Keytone. If access stays blocked after an update, remove the old Keytone entry with −, add /Applications/Keytone.app with +, enable it, and restart."
     }
     #[cfg(target_os = "windows")]
     {
@@ -316,6 +369,73 @@ pub const fn normalize_key(key: Key) -> KeyCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{atomic::AtomicUsize, mpsc};
+
+    struct RecoveringBackend {
+        attempts: Arc<AtomicUsize>,
+        stopped: mpsc::Sender<()>,
+    }
+
+    impl InputBackend for RecoveringBackend {
+        fn run(
+            self,
+            active: Arc<AtomicBool>,
+            _repeats: Arc<AtomicBool>,
+            emit: impl Fn(KeyEvent) + Send + 'static,
+            on_ready: impl Fn() + Send + 'static,
+        ) -> Result<(), InputError> {
+            if self.attempts.fetch_add(1, Ordering::Relaxed) == 0 {
+                return Err(InputError::Listener("permission not granted yet".into()));
+            }
+            on_ready();
+            emit(KeyEvent {
+                key: KeyCode::Space,
+                state: keytone_core::KeyState::Pressed,
+                timestamp: std::time::Instant::now(),
+            });
+            while active.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(10));
+            }
+            let _ = self.stopped.send(());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn listener_recovers_after_denied_permission_and_stops_on_drop() {
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let backend_attempts = Arc::clone(&attempts);
+        let (stopped_tx, stopped_rx) = mpsc::channel();
+        let (event_tx, event_rx) = mpsc::channel();
+        let (error_tx, error_rx) = mpsc::channel();
+        let monitor = InputMonitor::start_with_backend(
+            false,
+            move |_| {
+                let _ = event_tx.send(());
+            },
+            || {},
+            move |_| {
+                let _ = error_tx.send(());
+            },
+            move || RecoveringBackend {
+                attempts: Arc::clone(&backend_attempts),
+                stopped: stopped_tx.clone(),
+            },
+        );
+        error_rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("initial denial reported");
+        event_rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("capture resumes after retry");
+        assert!(monitor.is_connected());
+        assert!(monitor.has_received_event());
+        assert_eq!(attempts.load(Ordering::Relaxed), 2);
+        drop(monitor);
+        stopped_rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("listener stops");
+    }
 
     #[test]
     fn native_keys_normalize_without_text() {

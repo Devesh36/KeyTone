@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use keytone_core::{KeyCode, KeyEvent, KeyState};
-use objc2_core_foundation::{kCFRunLoopCommonModes, CFMachPort, CFRunLoop};
+use objc2_core_foundation::{kCFRunLoopDefaultMode, CFMachPort, CFRetained, CFRunLoop};
 use objc2_core_graphics::{
     CGEvent, CGEventField, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
     CGEventTapProxy, CGEventType,
@@ -23,15 +23,18 @@ use objc2_core_graphics::{
 
 use crate::InputError;
 
-const KEYBOARD_EVENT_MASK: u64 = (1 << CGEventType::KeyDown.0)
-    | (1 << CGEventType::KeyUp.0)
-    | (1 << CGEventType::FlagsChanged.0);
+// macOS silently removes unauthorized bits from a requested event mask. If
+// FlagsChanged is included here, creation can succeed with *only* modifier
+// events even when ordinary keys are blocked. Keep keyboard access mandatory.
+const KEYBOARD_EVENT_MASK: u64 = (1 << CGEventType::KeyDown.0) | (1 << CGEventType::KeyUp.0);
+const MODIFIER_EVENT_MASK: u64 = 1 << CGEventType::FlagsChanged.0;
 
 struct CallbackContext {
     active: Arc<AtomicBool>,
     play_repeats: Arc<AtomicBool>,
     pressed: HashSet<KeyCode>,
     emit: Box<dyn Fn(KeyEvent) + Send>,
+    taps: Vec<CFRetained<CFMachPort>>,
 }
 
 pub(super) fn listen(
@@ -41,10 +44,11 @@ pub(super) fn listen(
     on_ready: impl Fn() + Send + 'static,
 ) -> Result<(), InputError> {
     let context = Box::new(CallbackContext {
-        active,
+        active: Arc::clone(&active),
         play_repeats,
         pressed: HashSet::new(),
         emit: Box::new(emit),
+        taps: Vec::new(),
     });
     let context = Box::into_raw(context);
 
@@ -52,7 +56,7 @@ pub(super) fn listen(
     // callback returns the borrowed event unchanged as required by CoreGraphics.
     let tap = unsafe {
         CGEvent::tap_create(
-            CGEventTapLocation::HIDEventTap,
+            CGEventTapLocation::SessionEventTap,
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::ListenOnly,
             KEYBOARD_EVENT_MASK,
@@ -69,11 +73,40 @@ pub(super) fn listen(
         ));
     };
 
+    // Only request modifiers after the mandatory keyboard tap succeeds. Both
+    // callbacks run on this same run loop, so sharing their context is safe.
+    let modifier_tap = unsafe {
+        CGEvent::tap_create(
+            CGEventTapLocation::SessionEventTap,
+            CGEventTapPlacement::HeadInsertEventTap,
+            CGEventTapOptions::ListenOnly,
+            MODIFIER_EVENT_MASK,
+            Some(event_callback),
+            context.cast::<c_void>(),
+        )
+    };
+    let Some(modifier_tap) = modifier_tap else {
+        tap.invalidate();
+        // SAFETY: neither tap has been attached to a run loop.
+        unsafe { drop(Box::from_raw(context)) };
+        return Err(InputError::Listener(
+            "could not create the macOS modifier event tap".into(),
+        ));
+    };
+
     let Some(source) = CFMachPort::new_run_loop_source(None, Some(&tap), 0) else {
         // SAFETY: no run-loop source exists, so the callback cannot run.
         unsafe { drop(Box::from_raw(context)) };
         return Err(InputError::Listener(
             "could not create the macOS keyboard run-loop source".into(),
+        ));
+    };
+    let Some(modifier_source) = CFMachPort::new_run_loop_source(None, Some(&modifier_tap), 0)
+    else {
+        // SAFETY: neither source has been attached to a run loop.
+        unsafe { drop(Box::from_raw(context)) };
+        return Err(InputError::Listener(
+            "could not create the modifier run-loop source".into(),
         ));
     };
     let Some(run_loop) = CFRunLoop::current() else {
@@ -86,16 +119,49 @@ pub(super) fn listen(
 
     // SAFETY: this is an immutable CoreFoundation constant valid for the
     // process lifetime.
-    let common_modes = unsafe { kCFRunLoopCommonModes };
-    run_loop.add_source(Some(&source), common_modes);
+    let mode = unsafe { kCFRunLoopDefaultMode };
+    // SAFETY: the callback has not started; retain the tap for timeout recovery.
+    unsafe { (*context).taps = vec![tap.clone(), modifier_tap.clone()] };
+    run_loop.add_source(Some(&source), mode);
+    run_loop.add_source(Some(&modifier_source), mode);
     CGEvent::tap_enable(&tap, true);
-    on_ready();
-    CFRunLoop::run();
+    CGEvent::tap_enable(&modifier_tap, true);
+    if CGEvent::tap_is_enabled(&tap) && CGEvent::tap_is_enabled(&modifier_tap) {
+        on_ready();
+    }
+    while active.load(Ordering::Acquire)
+        && tap.is_valid()
+        && modifier_tap.is_valid()
+        && CGEvent::tap_is_enabled(&tap)
+        && CGEvent::tap_is_enabled(&modifier_tap)
+    {
+        CFRunLoop::run_in_mode(mode, 0.5, false);
+        for event_tap in [&tap, &modifier_tap] {
+            if !CGEvent::tap_is_enabled(event_tap) {
+                CGEvent::tap_enable(event_tap, true);
+            }
+        }
+    }
+
+    CGEvent::tap_enable(&tap, false);
+    CGEvent::tap_enable(&modifier_tap, false);
+    run_loop.remove_source(Some(&source), mode);
+    run_loop.remove_source(Some(&modifier_source), mode);
+    source.invalidate();
+    modifier_source.invalidate();
+    tap.invalidate();
+    modifier_tap.invalidate();
 
     // SAFETY: the run loop has exited and the source/tap are about to drop, so
     // CoreGraphics can no longer invoke the callback with this pointer.
     unsafe { drop(Box::from_raw(context)) };
-    Ok(())
+    if active.load(Ordering::Acquire) {
+        Err(InputError::Listener(
+            "macOS disconnected the keyboard event tap".into(),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 unsafe extern "C-unwind" fn event_callback(
@@ -115,6 +181,20 @@ unsafe extern "C-unwind" fn event_callback(
         // SAFETY: `listen` passes a live `CallbackContext` for the entire run
         // loop lifetime, and this callback is serialized by that run loop.
         let context = unsafe { &mut *user_info.cast::<CallbackContext>() };
+        // Disabled-tap notifications are not keyboard events. Handle them before
+        // accessing event fields; macOS can suspend taps during sleep or a stall.
+        if matches!(
+            event_type,
+            CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput
+        ) {
+            context.pressed.clear();
+            if context.active.load(Ordering::Relaxed) {
+                for tap in &context.taps {
+                    CGEvent::tap_enable(tap, true);
+                }
+            }
+            return;
+        }
         if !context.active.load(Ordering::Relaxed) {
             return;
         }
@@ -256,6 +336,15 @@ pub(super) const fn key_from_macos_keycode(code: u16) -> KeyCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn permission_probe_cannot_succeed_with_only_modifier_events() {
+        // CGEventTapCreate strips unauthorized events rather than rejecting the
+        // full mask. A modifier-only grant must therefore leave this mask empty.
+        assert_eq!(KEYBOARD_EVENT_MASK & MODIFIER_EVENT_MASK, 0);
+        assert_ne!(KEYBOARD_EVENT_MASK & (1 << CGEventType::KeyDown.0), 0);
+        assert_ne!(KEYBOARD_EVENT_MASK & (1 << CGEventType::KeyUp.0), 0);
+    }
 
     #[test]
     fn maps_physical_ansi_keys_without_text_translation() {

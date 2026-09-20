@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppSnapshot, Effects } from "../types";
+import type { AppHealth, AppSnapshot, Effects } from "../types";
 
 const defaultEffects: Effects = {
   masterVolume: 0.82,
@@ -30,9 +30,11 @@ let browserState: AppSnapshot = {
     { id: "clicky", name: "Clicky", author: "Keytone", version: "1.0.0", description: "A bright tactile click with a short, crisp decay.", license: "CC0-1.0", tags: ["bright", "tactile"], hasReleaseSamples: true },
     { id: "retro", name: "Retro Terminal", author: "Keytone", version: "1.0.0", description: "Dry, mid-forward typewriter-inspired impacts.", license: "CC0-1.0", tags: ["retro", "dry"], hasReleaseSamples: true },
   ],
-  audio: { status: "running", scheduledEvents: 1248, droppedEvents: 0, averageSchedulingMicros: 43, lastError: null },
+  audio: { status: "running", scheduledEvents: 1248, renderedEvents: 1248, droppedEvents: 0, averageSchedulingMicros: 43, lastError: null },
   outputDevices: ["System Default"],
   permission: "granted",
+  inputConnected: true,
+  inputReceived: false,
   permissionInstructions: "Enable Keytone in System Settings → Privacy & Security → Input Monitoring.",
   warnings: [],
 };
@@ -47,6 +49,8 @@ async function command<T>(name: string, args?: Record<string, unknown>): Promise
 
 export const api = {
   getState: () => isTauri() ? command<AppSnapshot>("get_state") : Promise.resolve(browserState),
+  getHealth: () => isTauri() ? command<AppHealth>("get_health") : Promise.resolve(browserState),
+  restart: () => isTauri() ? command<void>("restart_app") : Promise.resolve(),
   setEngine: async (enabled: boolean) => {
     if (isTauri()) return command<AppSnapshot>("set_engine", { enabled });
     browserState = { ...browserState, settings: { ...browserState.settings, engineEnabled: enabled } };

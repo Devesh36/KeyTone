@@ -35,13 +35,13 @@
 
 ## Download
 
-Keytone v0.1.1 is available as a native desktop application. Choose your platform or visit the [latest GitHub release](https://github.com/Devesh36/KeyTone/releases/latest) for every installer format.
+Choose your platform at the [latest GitHub release](https://github.com/Devesh36/KeyTone/releases/latest) for every installer format.
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| macOS | [Universal DMG](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_universal.dmg) | macOS 11+, Apple Silicon or Intel |
-| Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_x64_en-US.msi) | Windows 10+ |
-| Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.1_amd64.AppImage) | Modern x86_64 distribution |
+| macOS | [Universal DMG](https://github.com/Devesh36/KeyTone/releases/latest) | macOS 11+, Apple Silicon or Intel |
+| Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest) | Windows 10+ |
+| Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest) | Modern x86_64 distribution |
 
 ### Opening Keytone on macOS
 
@@ -52,15 +52,17 @@ Keytone v0.1.1 is available as a native desktop application. Choose your platfor
 2. Open **System Settings → Privacy & Security**.
 3. Scroll to the Security section and click **Open Anyway** beside the Keytone message.
 4. Authenticate with Touch ID or your password, then click **Open**.
-5. Enable Keytone under **Privacy & Security → Input Monitoring**. If it already appears enabled after replacing an older build, turn it off and back on. Keytone reconnects automatically.
+5. Enable Keytone under **Privacy & Security → Input Monitoring**, then use **Settings → Restart Keytone** in the app (or accept macOS's **Quit & Reopen**).
+
+If **Test sound** works but typing stays silent after an update, remove the old Keytone entry from Input Monitoring with **−**, add **/Applications/Keytone.app** with **+**, and enable it. Fully restart Keytone to refresh macOS's cached authorization. Ad-hoc signatures change between builds, so an old entry can refer to the previous executable. In Keytone Settings, check **Listener: Connected** and press a key; **Input check** should report that an event arrived.
 
 Do not disable Gatekeeper globally. See [Apple's official Open Anyway instructions](https://support.apple.com/en-gb/102445) for more information.
 
 On Linux, make the AppImage executable before launching it:
 
 ```bash
-chmod +x Keytone_0.1.1_amd64.AppImage
-./Keytone_0.1.1_amd64.AppImage
+chmod +x Keytone_0.1.2_amd64.AppImage
+./Keytone_0.1.2_amd64.AppImage
 ```
 
 ## Why Keytone?
@@ -129,7 +131,9 @@ See the [preset format](docs/presets.md).
 
 ### macOS
 
-The current release may require the one-time [Open Anyway procedure](#opening-keytone-on-macos) described above. Global key monitoring separately requires **Input Monitoring** access. Keytone preflights this permission, shows a visible repair action when it is missing, and reconnects its listener automatically after access is enabled. When replacing an older ad-hoc-signed build, toggle Keytone off and back on in Input Monitoring so macOS authorizes the new binary.
+The current release may require the one-time [Open Anyway procedure](#opening-keytone-on-macos) described above. Global key monitoring separately requires **Input Monitoring** access. Permission approval and listener connectivity are shown separately. Keytone retries failed connections and recovers disabled event taps; a full restart may still be required for macOS to apply a permission change. Follow the replacement steps above if an update leaves typing silent.
+
+For a local diagnostic, fully quit Keytone, then run `/Applications/Keytone.app/Contents/MacOS/keytone --diagnose` in Terminal. The app queues a test sound, reports permission, listener connectivity, whether any input arrived, and scheduled/processed audio counts for 60 seconds, then quits. No key identities or typed text are printed. Launching from Terminal can have different permission attribution from Finder, so also verify the normally launched installed app in Settings.
 
 ### Windows
 

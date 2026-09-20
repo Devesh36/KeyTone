@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -61,6 +60,18 @@ pub struct AppSnapshot {
     pub output_devices: Vec<String>,
     pub permission: &'static str,
     pub permission_instructions: &'static str,
+    pub input_connected: bool,
+    pub input_received: bool,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppHealth {
+    pub permission: &'static str,
+    pub input_connected: bool,
+    pub input_received: bool,
+    pub audio: AudioStats,
     pub warnings: Vec<String>,
 }
 
@@ -70,7 +81,6 @@ pub struct AppRuntime {
     packs_root: PathBuf,
     packs: Mutex<HashMap<String, (PathBuf, PackInfo)>>,
     audio: Arc<AudioEngine>,
-    permission: Arc<AtomicU8>,
     warnings: Arc<Mutex<Vec<String>>>,
     input: InputMonitor,
 }
@@ -116,24 +126,18 @@ impl AppRuntime {
                 permission_instructions()
             ));
         }
-        let permission = Arc::new(AtomicU8::new(permission_code(initial_permission)));
         let warnings = Arc::new(Mutex::new(warnings));
         let input_audio = Arc::clone(&audio);
-        let ready_permission = Arc::clone(&permission);
         let ready_warnings = Arc::clone(&warnings);
-        let error_permission = Arc::clone(&permission);
         let error_warnings = Arc::clone(&warnings);
         let input = InputMonitor::start(
             settings.settings.play_repeats,
             move |event| input_audio.trigger(event),
             move || {
-                ready_permission
-                    .store(permission_code(PermissionState::Granted), Ordering::Release);
                 clear_keyboard_warnings(&ready_warnings);
+                tracing::info!("keyboard listener connected");
             },
             move |error| {
-                error_permission
-                    .store(permission_code(PermissionState::Missing), Ordering::Release);
                 set_keyboard_warning(
                     &error_warnings,
                     format!(
@@ -150,7 +154,6 @@ impl AppRuntime {
             packs_root,
             packs: Mutex::new(packs),
             audio,
-            permission,
             warnings,
             input,
         };
@@ -165,7 +168,7 @@ impl AppRuntime {
 
     #[must_use]
     pub fn snapshot(&self) -> AppSnapshot {
-        self.refresh_permission();
+        let health = self.health();
         let envelope = self.settings.lock().clone();
         let mut packs = self
             .packs
@@ -180,29 +183,34 @@ impl AppRuntime {
             packs,
             audio: self.audio.stats(),
             output_devices: output_devices().unwrap_or_default(),
-            permission: permission_label(self.permission.load(Ordering::Acquire)),
+            permission: health.permission,
             permission_instructions: permission_instructions(),
+            input_connected: health.input_connected,
+            input_received: health.input_received,
             warnings: self.warnings.lock().clone(),
         }
     }
 
-    /// Re-checks the live OS permission instead of relying on the state from
-    /// process startup. This matters when access is granted while Keytone is open.
-    pub fn refresh_permission(&self) {
-        let detected = keytone_input::permission_state();
-        if detected == PermissionState::Unknown {
-            return;
-        }
-        self.permission
-            .store(permission_code(detected), Ordering::Release);
-        if detected == PermissionState::Granted {
-            clear_keyboard_warnings(&self.warnings);
+    pub fn health(&self) -> AppHealth {
+        let connected = self.input.is_connected();
+        // Successful tap creation is stronger evidence than a cached preflight
+        // result. Conversely, permission alone does not prove listener readiness.
+        let permission = if connected {
+            PermissionState::Granted
+        } else {
+            keytone_input::permission_state()
+        };
+        AppHealth {
+            permission: permission_label(permission_code(permission)),
+            input_connected: connected,
+            input_received: self.input.has_received_event(),
+            audio: self.audio.stats(),
+            warnings: self.warnings.lock().clone(),
         }
     }
 
     pub fn open_keyboard_settings(&self) -> Result<(), RuntimeError> {
         request_permission();
-        self.refresh_permission();
 
         #[cfg(target_os = "macos")]
         {

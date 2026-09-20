@@ -42,6 +42,7 @@ export interface PackInfo {
 export interface AudioStats {
   status: "stopped" | "running" | "deviceError";
   scheduledEvents: number;
+  renderedEvents: number;
   droppedEvents: number;
   averageSchedulingMicros: number;
   lastError: string | null;
@@ -55,7 +56,11 @@ export interface AppSnapshot {
   outputDevices: string[];
   permission: "unknown" | "granted" | "missing";
   permissionInstructions: string;
+  inputConnected: boolean;
+  inputReceived: boolean;
   warnings: string[];
 }
+
+export type AppHealth = Pick<AppSnapshot, "permission" | "inputConnected" | "inputReceived" | "audio" | "warnings">;
 
 export type Page = "home" | "lab" | "packs" | "settings";

@@ -7,9 +7,10 @@ interface SettingsProps {
   onPreferences: (release: boolean, repeats: boolean, startup: boolean, keepRunning: boolean) => void;
   onOutput: (name: string | null) => void;
   onKeyboardAccess: () => void;
+  onRestart: () => void;
 }
 
-export function Settings({ snapshot, onPreferences, onOutput, onKeyboardAccess }: SettingsProps) {
+export function Settings({ snapshot, onPreferences, onOutput, onKeyboardAccess, onRestart }: SettingsProps) {
   const s = snapshot.settings;
   const preference = (patch: Partial<Pick<typeof s, "releaseSounds" | "playRepeats" | "launchAtStartup" | "keepRunningOnClose">>) => {
     onPreferences(patch.releaseSounds ?? s.releaseSounds, patch.playRepeats ?? s.playRepeats, patch.launchAtStartup ?? s.launchAtStartup, patch.keepRunningOnClose ?? s.keepRunningOnClose);
@@ -31,15 +32,18 @@ export function Settings({ snapshot, onPreferences, onOutput, onKeyboardAccess }
           <SettingToggle title="Launch at startup" detail="Preference saved; OS registration is planned" value={s.launchAtStartup} onChange={(v) => preference({ launchAtStartup: v })} />
         </section>
         <section className="settings-section privacy-section">
-          <div className="settings-heading"><LockKeyhole size={20} /><div><h2>Keyboard access & privacy</h2><p>Status: <strong>{snapshot.permission}</strong></p></div></div>
+          <div className="settings-heading"><LockKeyhole size={20} /><div><h2>Keyboard access & privacy</h2><p>Permission: <strong>{snapshot.permission}</strong> · Listener: <strong>{snapshot.inputConnected ? "Connected" : "Disconnected"}</strong></p></div></div>
           <p>Keytone receives individual physical key press/release events and immediately turns them into audio triggers. It never builds words, stores key history, sends events, or uses a network service.</p>
+          <p>Input check: {snapshot.inputReceived ? "A keyboard event has reached Keytone." : "No keyboard event received yet. Press a key to check."} Audio output: {snapshot.audio.status}. Sounds processed: {snapshot.audio.renderedEvents}.</p>
           <div className={`permission-help permission-${snapshot.permission}`}>
             <span>{snapshot.permissionInstructions}</span>
-            {snapshot.permission === "missing" ? (
-              <button type="button" onClick={onKeyboardAccess}>Open Input Monitoring <ExternalLink size={14} /></button>
-            ) : (
+            {snapshot.inputConnected && (
               <span className="permission-ready">Keyboard listening is ready</span>
             )}
+          </div>
+          <div className="header-actions" style={{ marginTop: 12 }}>
+            <button type="button" className="secondary-button" onClick={onKeyboardAccess}>Keyboard permissions <ExternalLink size={14} /></button>
+            <button type="button" className="primary-button" onClick={onRestart}>Restart Keytone</button>
           </div>
         </section>
       </div>

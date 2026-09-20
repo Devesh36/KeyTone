@@ -32,6 +32,7 @@ pub enum AudioStatus {
 pub struct AudioStats {
     pub status: AudioStatus,
     pub scheduled_events: u64,
+    pub rendered_events: u64,
     pub dropped_events: u64,
     pub average_scheduling_micros: u64,
     pub last_error: Option<String>,
@@ -75,6 +76,7 @@ struct Voice {
 }
 
 struct Mixer {
+    rendered_events: Arc<AtomicU64>,
     queue: Arc<ArrayQueue<Trigger>>,
     params: Arc<AtomicDspParams>,
     voices: Vec<Option<Voice>>,
@@ -89,10 +91,12 @@ impl Mixer {
         queue: Arc<ArrayQueue<Trigger>>,
         params: Arc<AtomicDspParams>,
         sample_rate: u32,
+        rendered_events: Arc<AtomicU64>,
     ) -> Self {
         let mut voices = Vec::with_capacity(MAX_VOICES);
         voices.resize_with(MAX_VOICES, || None);
         Self {
+            rendered_events,
             queue,
             params,
             voices,
@@ -105,6 +109,7 @@ impl Mixer {
 
     fn receive_triggers(&mut self) {
         while let Some(trigger) = self.queue.pop() {
+            self.rendered_events.fetch_add(1, Ordering::Relaxed);
             let index = self
                 .voices
                 .iter()
@@ -176,6 +181,7 @@ impl Mixer {
 }
 
 pub struct AudioEngine {
+    rendered_events: Arc<AtomicU64>,
     pack: ArcSwap<LoadedPack>,
     params: Arc<AtomicDspParams>,
     queue: Arc<ArrayQueue<Trigger>>,
@@ -211,6 +217,8 @@ impl AudioEngine {
         let thread_params = Arc::clone(&params);
         let thread_status = Arc::clone(&status);
         let thread_error = Arc::clone(&last_error);
+        let rendered_events = Arc::new(AtomicU64::new(0));
+        let thread_rendered_events = Arc::clone(&rendered_events);
         if let Err(error) = std::thread::Builder::new()
             .name("keytone-audio-control".into())
             .spawn(move || {
@@ -220,6 +228,7 @@ impl AudioEngine {
                     thread_params,
                     thread_status,
                     thread_error,
+                    thread_rendered_events,
                 );
             })
         {
@@ -227,6 +236,7 @@ impl AudioEngine {
             status.store(AudioStatus::DeviceError as u8, Ordering::Release);
         }
         Self {
+            rendered_events,
             pack: ArcSwap::new(pack),
             params,
             queue,
@@ -325,6 +335,7 @@ impl AudioEngine {
         AudioStats {
             status: decode_status(self.status.load(Ordering::Acquire)),
             scheduled_events: scheduled,
+            rendered_events: self.rendered_events.load(Ordering::Relaxed),
             dropped_events: self.dropped_events.load(Ordering::Relaxed),
             average_scheduling_micros: average_nanos / 1_000,
             last_error: self.last_error.lock().clone(),
@@ -344,6 +355,7 @@ fn audio_control_loop(
     params: Arc<AtomicDspParams>,
     status: Arc<AtomicU8>,
     last_error: Arc<Mutex<Option<String>>>,
+    rendered_events: Arc<AtomicU64>,
 ) {
     let mut stream: Option<Stream> = None;
     while let Ok(command) = commands.recv() {
@@ -359,6 +371,7 @@ fn audio_control_loop(
                     Arc::clone(&params),
                     Arc::clone(&status),
                     Arc::clone(&last_error),
+                    Arc::clone(&rendered_events),
                 );
                 match result {
                     Ok(new_stream) => {
@@ -389,6 +402,7 @@ fn create_stream(
     params: Arc<AtomicDspParams>,
     status: Arc<AtomicU8>,
     last_error: Arc<Mutex<Option<String>>>,
+    rendered_events: Arc<AtomicU64>,
 ) -> Result<Stream, AudioError> {
     let host = cpal::default_host();
     let device = select_device(&host, selected_device)?;
@@ -408,21 +422,21 @@ fn create_stream(
         SampleFormat::F32 => build_stream::<f32>(
             &device,
             &config,
-            Mixer::new(queue, params, sample_rate),
+            Mixer::new(queue, params, sample_rate, rendered_events),
             channels,
             error_callback,
         ),
         SampleFormat::I16 => build_stream::<i16>(
             &device,
             &config,
-            Mixer::new(queue, params, sample_rate),
+            Mixer::new(queue, params, sample_rate, rendered_events),
             channels,
             error_callback,
         ),
         SampleFormat::U16 => build_stream::<u16>(
             &device,
             &config,
-            Mixer::new(queue, params, sample_rate),
+            Mixer::new(queue, params, sample_rate, rendered_events),
             channels,
             error_callback,
         ),
@@ -519,5 +533,32 @@ mod tests {
         let mut voices = Vec::with_capacity(MAX_VOICES);
         voices.resize_with(MAX_VOICES, || None::<Voice>);
         assert_eq!(voices.len(), 64);
+    }
+
+    #[test]
+    fn queued_sound_reaches_stereo_output_and_rendered_counter() {
+        let queue = Arc::new(ArrayQueue::new(4));
+        let rendered = Arc::new(AtomicU64::new(0));
+        let params = Arc::new(AtomicDspParams::new(DspParams::from(Effects::default())));
+        let mut mixer = Mixer::new(Arc::clone(&queue), params, 48_000, Arc::clone(&rendered));
+        assert!(queue
+            .push(Trigger {
+                sample: Arc::new(SampleData {
+                    mono: vec![0.25; 1024].into_boxed_slice(),
+                    sample_rate: 48_000
+                }),
+                gain: 1.0,
+                rate: 1.0,
+                pan_left: 0.7,
+                pan_right: 0.7,
+            })
+            .is_ok());
+        assert_eq!(rendered.load(Ordering::Relaxed), 0);
+        let mut output = [0.0_f32; 256];
+        mixer.render(&mut output, 2);
+        assert_eq!(rendered.load(Ordering::Relaxed), 1);
+        assert!(output
+            .chunks_exact(2)
+            .any(|frame| frame[0].abs() > 0.01 && frame[1].abs() > 0.01));
     }
 }

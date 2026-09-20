@@ -14,6 +14,7 @@ interface HomeProps {
 export function Home({ snapshot, busy, onEngine, onVolume, onNavigate, onTest }: HomeProps) {
   const { settings } = snapshot;
   const pack = snapshot.packs.find((item) => item.id === settings.activePack);
+  const live = settings.engineEnabled && snapshot.inputConnected && snapshot.audio.status === "running";
   return (
     <div className="page home-page">
       <header className="page-header home-heading">
@@ -21,20 +22,21 @@ export function Home({ snapshot, busy, onEngine, onVolume, onNavigate, onTest }:
           <p className="eyebrow">KEYTONE / LISTEN</p>
           <h1>Make every keystroke<br /><em>sound yours.</em></h1>
         </div>
-        <div className={`engine-orb ${settings.engineEnabled ? "active" : ""}`}>
-          <div><Radio size={22} /><span>{settings.engineEnabled ? "LIVE" : "MUTED"}</span></div>
+        <div className={`engine-orb ${live ? "active" : ""}`}>
+          <div><Radio size={22} /><span>{live ? "LIVE" : settings.engineEnabled ? "CHECK ACCESS" : "MUTED"}</span></div>
         </div>
       </header>
 
-      {snapshot.permission === "missing" && (
+      {!snapshot.inputConnected && (
         <section className="keyboard-access-alert" role="alert">
-          <div><strong>Keyboard access is off</strong><span>macOS is blocking global keystrokes, so typing cannot trigger sounds.</span></div>
+          <div><strong>Keyboard listener is disconnected</strong><span>{snapshot.permission === "missing" ? "Enable keyboard access in Settings, then restart Keytone." : "Access may be approved, but capture has not connected. Open Settings to restart and check it."}</span></div>
           <button type="button" onClick={() => onNavigate("settings")}>Fix access <ArrowRight size={15} /></button>
         </section>
       )}
+      {snapshot.audio.lastError && <div className="warning-banner" role="alert">Audio output: {snapshot.audio.lastError}. Choose an output device in Settings.</div>}
 
       <section className="engine-strip">
-        <div><span className="section-kicker">ENGINE</span><strong>{settings.engineEnabled ? "Sound follows your keyboard" : "Keystrokes are silent"}</strong></div>
+        <div><span className="section-kicker">ENGINE</span><strong>{live ? "Sound follows your keyboard" : settings.engineEnabled ? "Setup needs attention" : "Keystrokes are silent"}</strong></div>
         <div className="engine-control"><span className={settings.engineEnabled ? "online" : ""}>{settings.engineEnabled ? "ON" : "OFF"}</span><Toggle checked={settings.engineEnabled} onChange={onEngine} label="Sound engine" disabled={busy} /></div>
       </section>
 

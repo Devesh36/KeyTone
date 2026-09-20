@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use keytone_core::{Effects, KeyCode, KeyEvent, KeyState};
-use runtime::{AppRuntime, AppSnapshot};
+use runtime::{AppHealth, AppRuntime, AppSnapshot};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, State};
@@ -12,6 +12,16 @@ use tauri::{AppHandle, Manager, State};
 #[tauri::command]
 fn get_state(runtime: State<'_, AppRuntime>) -> AppSnapshot {
     runtime.snapshot()
+}
+
+#[tauri::command]
+fn get_health(runtime: State<'_, AppRuntime>) -> AppHealth {
+    runtime.health()
+}
+
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    app.request_restart();
 }
 
 #[tauri::command]
@@ -112,12 +122,25 @@ fn select_output_device(
 }
 
 #[tauri::command]
-fn test_sound(runtime: State<'_, AppRuntime>) {
+fn test_sound(runtime: State<'_, AppRuntime>) -> Result<(), String> {
+    let snapshot = runtime.snapshot();
+    if !snapshot.settings.engine_enabled {
+        return Err("Turn on the sound engine before testing playback.".into());
+    }
+    if snapshot.settings.effects.master_volume == 0.0 {
+        return Err("Raise the master volume before testing playback.".into());
+    }
+    if let Some(error) = snapshot.audio.last_error {
+        return Err(format!(
+            "Audio output is unavailable: {error}. Select an output device in Settings."
+        ));
+    }
     runtime.audio().trigger(KeyEvent {
         key: KeyCode::Space,
         state: KeyState::Pressed,
         timestamp: Instant::now(),
     });
+    Ok(())
 }
 
 #[tauri::command]
@@ -232,6 +255,26 @@ pub fn run() {
             app.manage(runtime);
             app.manage(QuitState(AtomicBool::new(false)));
             setup_tray(app.handle())?;
+            // Opt-in packaged-app diagnostic. Only health booleans and audio
+            // counters are printed; physical keys and typed text never are.
+            if std::env::args().any(|arg| arg == "--diagnose") {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let runtime = handle.state::<AppRuntime>();
+                    eprintln!("KEYTONE_DIAGNOSTIC_START {:?}", runtime.health());
+                    runtime.audio().trigger(KeyEvent {
+                        key: KeyCode::Space,
+                        state: KeyState::Pressed,
+                        timestamp: Instant::now(),
+                    });
+                    for _ in 0..6 {
+                        std::thread::sleep(std::time::Duration::from_secs(10));
+                        eprintln!("KEYTONE_DIAGNOSTIC_CHECK {:?}", runtime.health());
+                    }
+                    eprintln!("KEYTONE_DIAGNOSTIC_END {:?}", runtime.health());
+                    handle.exit(0);
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -248,6 +291,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_state,
+            get_health,
+            restart_app,
             set_engine,
             update_effects,
             update_preferences,
