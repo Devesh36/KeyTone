@@ -240,7 +240,23 @@ fn show_window(app: &AppHandle) {
 
 struct QuitState(AtomicBool);
 
+#[cfg(target_os = "linux")]
+fn configure_appimage_webkit() {
+    // WebKitGTK's DMA-BUF renderer can fail to create an EGL surface when an
+    // Ubuntu-built AppImage runs through XWayland on newer distributions. The
+    // native deb/rpm packages use the host WebKitGTK and do not need this
+    // compatibility fallback. Preserve an explicit user override.
+    if std::env::var_os("APPIMAGE").is_some()
+        && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+    {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    configure_appimage_webkit();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

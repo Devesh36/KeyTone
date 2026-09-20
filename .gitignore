@@ -2,6 +2,7 @@
 /node_modules
 /apps/desktop/dist
 /apps/desktop/node_modules
+/apps/desktop/src-tauri/tauri.linux-ci.conf.json
 /apps/website/dist
 /apps/website/node_modules
 *.log
