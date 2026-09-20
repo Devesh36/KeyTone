@@ -44,6 +44,7 @@ pub enum RuntimeError {
     InvalidImportPath,
     #[error("could not serialize settings: {0}")]
     Serialize(#[from] serde_json::Error),
+    #[cfg(target_os = "macos")]
     #[error("could not open keyboard privacy settings: {0}")]
     OpenPermissionSettings(std::io::Error),
 }
