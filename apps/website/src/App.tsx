@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   AudioLines,
   Check,
+  CircleAlert,
   Download,
   Github,
   Laptop,
@@ -50,7 +51,7 @@ const downloadOptions: DownloadOption[] = [
   {
     platform: "macos",
     title: "macOS",
-    detail: "macOS 11 or newer",
+    detail: "macOS 11+ · Open Anyway required",
     extension: ".dmg · Universal",
     icon: Apple,
   },
@@ -389,6 +390,28 @@ function App() {
             {release ? `Latest release: ${release.tag_name}` : "Installers are published on GitHub Releases."}
             {" · "}<a href={`${REPOSITORY_URL}#installation`}>Build from source <ArrowUpRight size={12} /></a>
           </p>
+          <aside className="mac-install-note" aria-labelledby="mac-install-title">
+            <CircleAlert aria-hidden="true" />
+            <div>
+              <span className="eyebrow">MACOS INSTALL NOTE</span>
+              <h3 id="mac-install-title">Seeing “Apple could not verify Keytone”?</h3>
+              <p>
+                The current v0.1 build is ad-hoc signed and not yet Apple-notarized. If you downloaded Keytone from this official site, macOS lets you approve it once:
+              </p>
+              <ol>
+                <li>Try to open Keytone, then choose <strong>Done</strong>—not Move to Bin.</li>
+                <li>Open <strong>System Settings → Privacy &amp; Security</strong>.</li>
+                <li>Scroll to Security and click <strong>Open Anyway</strong> beside Keytone.</li>
+                <li>Authenticate, choose <strong>Open</strong>, then enable Keytone under Input Monitoring.</li>
+              </ol>
+              <p className="mac-install-safety">
+                Only approve the copy downloaded from our official GitHub release. Never disable Gatekeeper globally.
+              </p>
+              <a href="https://support.apple.com/en-gb/102445" target="_blank" rel="noreferrer">
+                Apple’s Open Anyway instructions <ArrowUpRight size={13} />
+              </a>
+            </div>
+          </aside>
         </section>
       </main>
 

@@ -43,6 +43,19 @@ Keytone v0.1.0 is available as a native desktop application. Choose your platfor
 | Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_x64_en-US.msi) | Windows 10+ |
 | Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_amd64.AppImage) | Modern x86_64 distribution |
 
+### Opening Keytone on macOS
+
+> [!IMPORTANT]
+> The current v0.1 macOS build is ad-hoc signed and not yet Apple-notarized. macOS may show **“Apple could not verify Keytone is free of malware.”** Only approve Keytone when you downloaded it from this repository's official release.
+
+1. Try to open Keytone once. In the warning, click **Done**—not **Move to Bin**.
+2. Open **System Settings → Privacy & Security**.
+3. Scroll to the Security section and click **Open Anyway** beside the Keytone message.
+4. Authenticate with Touch ID or your password, then click **Open**.
+5. Enable Keytone under **Privacy & Security → Input Monitoring**, then fully restart the app.
+
+Do not disable Gatekeeper globally. See [Apple's official Open Anyway instructions](https://support.apple.com/en-gb/102445) for more information.
+
 On Linux, make the AppImage executable before launching it:
 
 ```bash
@@ -116,7 +129,7 @@ See the [preset format](docs/presets.md).
 
 ### macOS
 
-Global key monitoring requires **Input Monitoring** access. Open **System Settings → Privacy & Security → Input Monitoring**, enable Keytone, then fully restart the app. Keytone preflights this permission and shows a visible warning when it is missing.
+The current release may require the one-time [Open Anyway procedure](#opening-keytone-on-macos) described above. Global key monitoring separately requires **Input Monitoring** access. Open **System Settings → Privacy & Security → Input Monitoring**, enable Keytone, then fully restart the app. Keytone preflights this permission and shows a visible warning when it is missing.
 
 ### Windows
 

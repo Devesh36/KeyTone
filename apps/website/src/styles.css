@@ -181,6 +181,14 @@ button { font: inherit; }
 .release-note { margin-top: 25px; color: #5f5e58; text-align: center; font-family: var(--mono); font-size: 9px; letter-spacing: .03em; }
 .release-note a { color: #9e9c93; }
 .release-note svg { vertical-align: -2px; }
+.mac-install-note { max-width: 850px; margin: 48px auto 0; padding: 29px 31px; display: grid; grid-template-columns: auto 1fr; gap: 20px; border: 1px solid #4a402a; border-radius: 12px; background: #15130e; text-align: left; }
+.mac-install-note > svg { width: 23px; height: 23px; color: var(--orange); }
+.mac-install-note h3 { margin: 8px 0 10px; font-size: 20px; letter-spacing: -.025em; }
+.mac-install-note p { margin: 0; color: #96938a; font-size: 12px; line-height: 1.7; }
+.mac-install-note ol { margin: 18px 0; padding-left: 20px; color: #c1beb4; font-size: 12px; line-height: 1.85; }
+.mac-install-note strong { color: var(--ink); font-weight: 600; }
+.mac-install-note .mac-install-safety { color: #c9a878; }
+.mac-install-note a { margin-top: 17px; display: inline-flex; align-items: center; gap: 5px; color: var(--ink); font-family: var(--mono); font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 
 footer { max-width: 1144px; margin: 0 auto; border-top: 1px solid var(--line); padding: 52px 0 26px; }
 .footer-top { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: start; }
@@ -242,6 +250,7 @@ footer { max-width: 1144px; margin: 0 auto; border-top: 1px solid var(--line); p
   .privacy { padding-top: 95px; padding-bottom: 95px; }
   .download-section { padding-top: 95px; padding-bottom: 90px; }
   .download-card { min-height: 270px; }
+  .mac-install-note { margin-top: 35px; padding: 24px 21px; grid-template-columns: 1fr; }
   footer { margin-inline: 20px; padding-top: 38px; }
   .footer-top { grid-template-columns: 1fr; gap: 23px; }
   .footer-top > p { text-align: left; }
