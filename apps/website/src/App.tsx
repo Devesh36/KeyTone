@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { SwitchDemo } from "./components/SwitchDemo";
+import { demoProfiles } from "./lib/demo";
+import { detectPlatform, isRelease, pickAsset, type Platform, type ReleaseResponse } from "./lib/downloads";
 import {
   Apple,
   ArrowDown,
-  ArrowRight,
   ArrowUpRight,
   AudioLines,
   Check,
@@ -14,7 +16,6 @@ import {
   Menu,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Terminal,
   Waves,
   X,
@@ -26,25 +27,12 @@ const REPOSITORY_URL = "https://github.com/Devesh36/KeyTone";
 const RELEASES_URL = `${REPOSITORY_URL}/releases/latest`;
 const RELEASE_API_URL = "https://api.github.com/repos/Devesh36/KeyTone/releases/latest";
 
-type Platform = "macos" | "windows" | "linux";
-
 type DownloadOption = {
   platform: Platform;
   title: string;
   detail: string;
   extension: string;
   icon: LucideIcon;
-};
-
-type ReleaseAsset = {
-  name: string;
-  browser_download_url: string;
-  size: number;
-};
-
-type ReleaseResponse = {
-  tag_name: string;
-  assets: ReleaseAsset[];
 };
 
 const downloadOptions: DownloadOption[] = [
@@ -98,43 +86,6 @@ const features = [
   },
 ];
 
-const keyboardRows = [
-  ["esc", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "−", "⌫"],
-  ["tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]"],
-  ["caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "↵"],
-  ["shift", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "shift"],
-  ["fn", "ctrl", "opt", "cmd", "space", "cmd", "opt", "←", "↑", "→"],
-];
-
-const waveHeights = [28, 46, 35, 68, 52, 84, 42, 64, 92, 58, 74, 38, 80, 48, 65, 31, 54, 72, 44, 88, 60, 35, 68, 49, 78, 41, 57, 32];
-
-function detectPlatform(): Platform {
-  if (typeof navigator === "undefined") return "macos";
-  const descriptor = `${navigator.platform} ${navigator.userAgent}`.toLowerCase();
-  if (descriptor.includes("win")) return "windows";
-  if (descriptor.includes("linux") || descriptor.includes("x11")) return "linux";
-  return "macos";
-}
-
-function pickAsset(platform: Platform, assets: ReleaseAsset[]): ReleaseAsset | undefined {
-  const scored = assets
-    .map((asset) => {
-      const name = asset.name.toLowerCase();
-      let score = 0;
-      if (platform === "macos" && name.endsWith(".dmg")) score = 10;
-      if (platform === "windows" && name.endsWith(".msi")) score = 10;
-      if (platform === "windows" && name.endsWith(".exe")) score = 8;
-      if (platform === "linux" && name.endsWith(".appimage")) score = 10;
-      if (platform === "linux" && name.endsWith(".deb")) score = 8;
-      if (platform === "macos" && name.includes("universal")) score += 4;
-      if (name.includes("x64") || name.includes("amd64") || name.includes("universal")) score += 1;
-      return { asset, score };
-    })
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score);
-  return scored[0]?.asset;
-}
-
 function formatBytes(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1_048_576))} MB`;
 }
@@ -150,46 +101,28 @@ function Logo() {
   );
 }
 
-function KeyboardVisual() {
-  return (
-    <div className="instrument" aria-label="A keyboard visual showing spatial audio activity">
-      <div className="instrument-head">
-        <div>
-          <span className="eyebrow">LIVE ENGINE</span>
-          <p>Spatial field</p>
-        </div>
-        <span className="engine-state"><i /> Active</span>
-      </div>
-      <div className="waveform" aria-hidden="true">
-        {waveHeights.map((height, index) => (
-          <i key={`${height}-${index}`} style={{ "--height": `${height}%`, "--delay": `${index * -48}ms` } as CSSProperties} />
-        ))}
-      </div>
-      <div className="keyboard" aria-hidden="true">
-        {keyboardRows.map((row, rowIndex) => (
-          <div className={`key-row key-row-${rowIndex}`} key={row.join("-")}>
-            {row.map((key, keyIndex) => (
-              <span
-                className={`key ${key.length > 2 ? "key-wide" : ""} ${key === "space" ? "key-space" : ""}`}
-                key={`${key}-${keyIndex}`}
-              >
-                {key}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="stereo-scale" aria-hidden="true">
-        <span>L</span><i /><strong>SPATIAL 72%</strong><i /><span>R</span>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const header = useRef<HTMLElement>(null);
+  const [demoProfile, setDemoProfile] = useState(0);
   const [release, setRelease] = useState<ReleaseResponse | null>(null);
-  const platform = useMemo(detectPlatform, []);
+  const platform = useMemo(() => typeof window === "undefined" || typeof navigator === "undefined" ? null : detectPlatform(navigator.userAgent, navigator.platform, navigator.maxTouchPoints), []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); }
+    };
+    const resize = () => { if (window.innerWidth > 960) setMenuOpen(false); };
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !header.current?.contains(event.target)) setMenuOpen(false);
+    };
+    window.addEventListener("keydown", escape);
+    window.addEventListener("resize", resize);
+    document.addEventListener("pointerdown", outside);
+    return () => { window.removeEventListener("keydown", escape); window.removeEventListener("resize", resize); document.removeEventListener("pointerdown", outside); };
+  }, [menuOpen]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -198,20 +131,22 @@ function App() {
       headers: { Accept: "application/vnd.github+json" },
     })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("No release"))))
-      .then((data: ReleaseResponse) => setRelease(data))
-      .catch(() => setRelease(null));
+      .then((data: unknown) => { if (!controller.signal.aborted) setRelease(isRelease(data) ? data : null); })
+      .catch(() => { if (!controller.signal.aborted) setRelease(null); });
     return () => controller.abort();
   }, []);
 
-  const platformAsset = release ? pickAsset(platform, release.assets) : undefined;
+  const platformAsset = release && platform ? pickAsset(platform, release.assets) : undefined;
   const platformName = downloadOptions.find((option) => option.platform === platform)?.title ?? "your OS";
 
   return (
     <div className="site-shell" id="top">
-      <header className="site-header">
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <header ref={header} className="site-header" onBlur={(event) => { if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }}>
         <div className="nav-wrap">
           <Logo />
-          <nav className={menuOpen ? "nav-links nav-links-open" : "nav-links"} aria-label="Main navigation">
+          <nav id="main-navigation" className={menuOpen ? "nav-links nav-links-open" : "nav-links"} aria-label="Main navigation">
+            <a href="#demo" onClick={() => setMenuOpen(false)}>Try it</a>
             <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#sound-packs" onClick={() => setMenuOpen(false)}>Sound packs</a>
             <a href="#privacy" onClick={() => setMenuOpen(false)}>Privacy</a>
@@ -222,15 +157,15 @@ function App() {
               <Github size={18} />
               <span>GitHub</span>
             </a>
-            <a className="nav-download" href="#download">Download</a>
-            <button className="menu-button" type="button" aria-label="Toggle menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            <a className="nav-download" href="#download" onClick={() => setMenuOpen(false)}>Download</a>
+            <button ref={menuButton} className="menu-button" type="button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-controls="main-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
               {menuOpen ? <X /> : <Menu />}
             </button>
           </div>
         </div>
       </header>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="hero page-section">
           <div className="hero-copy">
             <div className="hero-kicker"><AudioLines size={15} /> Local-first keyboard audio</div>
@@ -241,12 +176,13 @@ function App() {
             <div className="hero-actions">
               <a className="button button-primary" href={platformAsset?.browser_download_url ?? "#download"}>
                 <Download size={18} />
-                Download for {platformName}
+                {platform ? `Download for ${platformName}` : "Get the desktop app"}
               </a>
-              <a className="button button-secondary" href={REPOSITORY_URL} target="_blank" rel="noreferrer">
-                <Github size={18} /> View source
+              <a className="button button-secondary" href="#demo">
+                <AudioLines size={18} /> Try the switches
               </a>
             </div>
+            <p className="platform-note">For macOS, Windows &amp; Linux. No account. Just sound.</p>
             <div className="hero-meta">
               <span><Check size={14} /> Free & open source</span>
               <span><Check size={14} /> No account</span>
@@ -254,9 +190,7 @@ function App() {
             </div>
           </div>
           <div className="hero-visual">
-            <KeyboardVisual />
-            <span className="visual-note note-top">64 voice polyphony <ArrowRight size={13} /></span>
-            <span className="visual-note note-bottom"><ArrowRight size={13} /> Press + release layers</span>
+            <SwitchDemo profileIndex={demoProfile} onProfileChange={setDemoProfile} />
           </div>
           <a className="scroll-cue" href="#features"><ArrowDown size={16} /> Explore the engine</a>
         </section>
@@ -301,7 +235,7 @@ function App() {
               </ul>
             </div>
             <div className="mixer" aria-label="Sound Lab control preview">
-              <div className="mixer-head"><span>Late Night Cream</span><span className="mixer-status"><i /> LIVE</span></div>
+              <div className="mixer-head"><span>Late Night Cream</span><span className="mixer-status">APP PREVIEW</span></div>
               {[
                 ["MASTER", "82%", "82%"],
                 ["PITCH", "+1.2%", "58%"],
@@ -327,21 +261,14 @@ function App() {
             <p>Start with nineteen distinct profiles—from deep linear warmth to crisp, unapologetic clicks.</p>
           </div>
           <div className="pack-list">
-            <article className="pack-card pack-cream">
-              <div className="pack-number">01</div><Sparkles />
-              <div><h3>Cream</h3><p>Soft · Linear · Warm</p></div>
-              <div className="pack-wave"><i /><i /><i /><i /><i /><i /><i /></div>
-            </article>
-            <article className="pack-card pack-panda">
-              <div className="pack-number">02</div><Sparkles />
-              <div><h3>Holy Panda</h3><p>Round · Tactile · Full</p></div>
-              <div className="pack-wave"><i /><i /><i /><i /><i /><i /><i /></div>
-            </article>
-            <article className="pack-card pack-navy">
-              <div className="pack-number">03</div><Sparkles />
-              <div><h3>Box Navy</h3><p>Sharp · Clicky · Bright</p></div>
-              <div className="pack-wave"><i /><i /><i /><i /><i /><i /><i /></div>
-            </article>
+            {demoProfiles.map((profile, index) => (
+              <a className={`pack-card pack-${profile.id}`} href="#demo" key={profile.id} style={{ "--pack-color": profile.color } as CSSProperties} onClick={() => { setDemoProfile(index); document.getElementById("demo")?.focus({ preventScroll: true }); }} aria-label={`Try ${profile.name} in the keyboard demo`}>
+                <span className="pack-number">0{index + 1} / SWITCH PROFILE</span>
+                <span className="pack-keycap" aria-hidden="true"><span>{["C", "A", "N"][index]}</span></span>
+                <div><h3>{profile.name}</h3><p>{profile.character}</p></div>
+                <span className="pack-try">Try this switch <ArrowUpRight size={17} /></span>
+              </a>
+            ))}
           </div>
           <p className="pack-footnote">Plus Alpaca, Topre, Blue Alps, MX Black, MX Blue, MX Brown, and more.</p>
         </section>
@@ -363,7 +290,7 @@ function App() {
           <div className="download-intro">
             <span className="eyebrow">KEYTONE v{release?.tag_name.replace(/^v/, "") ?? "0.1"}</span>
             <h2>Ready when<br />your fingers are.</h2>
-            <p>Free, open source, and built to stay out of your way.</p>
+            <p>Free, open source, and built to stay out of your way.<br />A desktop app for macOS, Windows, and Linux—not iOS or Android.</p>
           </div>
           <div className="download-grid">
             {downloadOptions.map((option) => {
@@ -407,6 +334,7 @@ function App() {
               <p className="mac-install-safety">
                 Only approve the copy downloaded from our official GitHub release. Never disable Gatekeeper globally.
               </p>
+              <details className="permission-recovery"><summary>Already allowed access, but typing is silent?</summary><p>Quit Keytone from its menu-bar menu. In Input Monitoring, remove the old Keytone entry with −, add Applications → Keytone with +, enable it, then launch again. An update can leave the previous build’s permission behind.</p></details>
               <a href="https://support.apple.com/en-gb/102445" target="_blank" rel="noreferrer">
                 Apple’s Open Anyway instructions <ArrowUpRight size={13} />
               </a>
