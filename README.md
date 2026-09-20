@@ -1,70 +1,174 @@
-# Keytone
+<div align="center">
+  <img src="apps/desktop/src-tauri/icons/128x128@2x.png" width="88" height="88" alt="Keytone icon">
 
-> **Make every keystroke sound yours.**
+  <h1>Keytone</h1>
 
-Keytone is a local-first, low-latency desktop keyboard audio engine. It listens for individual global physical-key events and turns them into layered, spatial mechanical-keyboard sound—entirely on your computer.
+  <p><strong>Make every keystroke sound yours.</strong></p>
+  <p>A local-first, low-latency mechanical keyboard audio engine for macOS, Windows, and Linux.</p>
 
-![Keytone demo placeholder](docs/demo-placeholder.svg)
+  <p>
+    <a href="https://keytone.vercel.app/"><strong>Website</strong></a>
+    ·
+    <a href="https://github.com/Devesh36/KeyTone/releases/latest"><strong>Download</strong></a>
+    ·
+    <a href="docs/architecture.md"><strong>Architecture</strong></a>
+    ·
+    <a href="docs/sound-pack-spec.md"><strong>Sound Pack Spec</strong></a>
+  </p>
 
-## Features
+  <p>
+    <a href="https://github.com/Devesh36/KeyTone/actions/workflows/ci.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/Devesh36/KeyTone/ci.yml?branch=main&style=flat-square&label=CI"></a>
+    <a href="https://github.com/Devesh36/KeyTone/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Devesh36/KeyTone?style=flat-square"></a>
+    <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/Devesh36/KeyTone?style=flat-square"></a>
+    <img alt="Rust and Tauri" src="https://img.shields.io/badge/Rust_%2B_Tauri-native-f1a468?style=flat-square">
+    <img alt="Local first" src="https://img.shields.io/badge/processing-100%25_local-d7ff45?style=flat-square&labelColor=262622">
+  </p>
+</div>
 
-- Native global keyboard capture while Keytone is in the background
-- Rust/CPAL real-time audio path with 64 overlapping voices
-- Separate press and release samples, with repeat suppression
-- Per-key/category sample variation and subtle pitch/gain randomization
-- Physical keyboard-position stereo placement
-- Live master, pitch, bass, treble, room and spatial controls
-- Validated, local Keytone Sound Pack v1 folders
-- Shareable JSON presets, local settings, tray controls and output selection
-- Seven generated CC0 starter packs plus twelve MIT-licensed recorded switch packs
-- No account, analytics, telemetry, database or network service
+<br>
 
-## Architecture
+<a href="https://keytone.vercel.app/">
+  <img src="docs/keytone-landing.png" alt="Keytone landing page showing the spatial keyboard audio engine">
+</a>
+
+<p align="center"><sub>Explore Keytone at <a href="https://keytone.vercel.app/">keytone.vercel.app</a></sub></p>
+
+## Download
+
+Keytone v0.1.0 is available as a native desktop application. Choose your platform or visit the [latest GitHub release](https://github.com/Devesh36/KeyTone/releases/latest) for every installer format.
+
+| Platform | Download | Requirements |
+| --- | --- | --- |
+| macOS | [Universal DMG](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_universal.dmg) | macOS 11+, Apple Silicon or Intel |
+| Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_x64_en-US.msi) | Windows 10+ |
+| Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest/download/Keytone_0.1.0_amd64.AppImage) | Modern x86_64 distribution |
+
+On Linux, make the AppImage executable before launching it:
+
+```bash
+chmod +x Keytone_0.1.0_amd64.AppImage
+./Keytone_0.1.0_amd64.AppImage
+```
+
+## Why Keytone?
+
+Keytone transforms individual physical-key events into layered, spatial mechanical keyboard sound—entirely on your computer. It is designed as an audio engine first: the native Rust path handles input, sample selection, polyphonic mixing, DSP, and output without routing keystrokes through JavaScript.
+
+- **Feels immediate** — samples are preloaded and scheduled through a bounded real-time queue.
+- **Sounds natural** — multiple variations plus subtle pitch and volume randomization prevent robotic repetition.
+- **Press and release layers** — every key can have a distinct downstroke and upstroke sound.
+- **Spatial keyboard field** — left and right key positions translate into restrained stereo placement.
+- **64 overlapping voices** — fast chords and rapid typing do not cut off previous sounds.
+- **Live Sound Lab** — shape volume, pitch, bass, treble, room, randomness, and spatial strength while typing.
+- **Nineteen included profiles** — generated CC0 packs and MIT-licensed recorded switch packs.
+- **Local by design** — no account, cloud service, analytics, telemetry, or keyboard history.
+
+## How it works
 
 ```mermaid
 flowchart LR
-    OS[OS event tap / hook] --> Input[Input engine]
-    Input -->|KeyCode + state only| Map[Key/category mapper]
+    OS[OS keyboard event] --> Input[Native input engine]
+    Input -->|KeyCode + state only| Map[Key and category mapper]
     Map --> Select[Preloaded sample selector]
-    Select --> Queue[Bounded trigger queue]
+    Select --> Queue[Lock-free trigger queue]
     Queue --> Voices[64-voice mixer]
-    Voices --> DSP[Gain · Pitch · EQ · Room]
+    Voices --> DSP[Pitch · Gain · EQ · Room]
     DSP --> Pan[Spatial pan · Master]
-    Pan --> CPAL[Native audio device]
-    UI[Tauri + React] -->|atomic controls| DSP
+    Pan --> Device[Native audio device]
+    UI[Tauri + React] -->|Atomic controls| DSP
 ```
 
-The audio callback does no disk I/O, JavaScript calls, blocking locks or per-frame allocation. Sound packs are decoded to mono floating-point sample buffers before playback. See [architecture.md](docs/architecture.md).
+The audio callback performs no disk I/O, JavaScript calls, blocking locks, or per-frame allocation. Samples are decoded into in-memory floating-point buffers before playback. Read the full [architecture overview](docs/architecture.md).
 
-## Installation
+## Sound packs
 
-Keytone v0.1 is currently source-distributed. Install the prerequisites below, then run the development build.
+Keytone ships with a range of linear, tactile, clicky, and retro profiles, including Cream, Alpaca, Holy Panda, Box Navy, Topre, Blue Alps, and Cherry MX variants.
 
-### Prerequisites
+Packs are data-only directories. They contain a validated `manifest.json` and audio samples—never executable code. Explicit per-key mappings override category mappings, and category mappings fall back to `default`.
 
-- Rust 1.77 or later
-- Node.js 20 or later
-- pnpm 10 or later
-- Tauri 2 platform prerequisites for your OS
+```text
+my-pack/
+├── manifest.json
+└── samples/
+    ├── press/
+    │   ├── default/01.wav
+    │   └── space/01.wav
+    └── release/
+        └── default/01.wav
+```
 
-On Linux, install WebKitGTK 4.1, ALSA development headers, X11/XTest, AppIndicator and the standard [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/).
+To create your own:
+
+1. Record or synthesize WAV files you have the right to distribute.
+2. Arrange them under `samples/press` and, optionally, `samples/release`.
+3. Add a versioned v1 `manifest.json` using relative sample paths.
+4. Open **Packs → Import pack** in Keytone and select the folder.
+
+See the complete [Keytone Sound Pack Specification v1](docs/sound-pack-spec.md). Included recorded packs retain their upstream licensing; see [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Presets
+
+Sound packs provide raw samples. Presets store the active pack and processing configuration separately, including master volume, pitch, randomness, EQ, reverb, and spatial strength. Presets are local, versioned JSON designed to remain shareable.
+
+See the [preset format](docs/presets.md).
+
+## Permissions
+
+### macOS
+
+Global key monitoring requires **Input Monitoring** access. Open **System Settings → Privacy & Security → Input Monitoring**, enable Keytone, then fully restart the app. Keytone preflights this permission and shows a visible warning when it is missing.
+
+### Windows
+
+Keytone uses a native global keyboard hook. Normal applications do not require elevation; Windows privilege isolation can prevent a normal process from observing an elevated application.
+
+### Linux
+
+X11 capture uses native event facilities. On Wayland, global-input availability depends on compositor policy. Some device-level setups require membership in the `input` group. Keytone never attempts to bypass desktop security policy.
+
+## Privacy
+
+Keyboard monitoring deserves a clear boundary. Keytone:
+
+- processes one physical key event at a time;
+- schedules its sound and immediately discards the event;
+- never constructs words or records typed text;
+- never stores keyboard history;
+- never transmits keyboard activity;
+- contains no telemetry or analytics; and
+- requires no network connection to run.
+
+Read the full [privacy and threat model](docs/privacy.md).
 
 ## Development
 
+### Prerequisites
+
+- Rust 1.77 or newer
+- Node.js 20 or newer
+- pnpm 10 or newer
+- Tauri 2 prerequisites for your operating system
+
+On Linux, install WebKitGTK 4.1, ALSA development headers, X11/XTest, AppIndicator, and the standard [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+### Run the desktop app
+
 ```bash
+git clone https://github.com/Devesh36/KeyTone.git
+cd KeyTone
 pnpm install
 pnpm tauri dev
 ```
 
-The public landing page lives in `apps/website`. Run it locally with:
+### Run the landing page
 
 ```bash
 pnpm web:dev
 ```
 
-Its platform download buttons discover the matching macOS, Windows, and Linux installer from the latest GitHub Release. Version tags matching `v*` start the cross-platform desktop release workflow, while changes to the website on `main` deploy through GitHub Pages.
+The site is a separate Vite application in `apps/website`. Its platform buttons discover matching installer assets from the latest GitHub Release. The production deployment is available at [keytone.vercel.app](https://keytone.vercel.app/).
 
-Checks used by CI:
+### Verify the workspace
 
 ```bash
 cargo fmt --all -- --check
@@ -76,73 +180,44 @@ pnpm build
 pnpm tauri build
 ```
 
-Starter WAV files are installed into the application-data directory on first launch. Seven packs are synthesized from reproducible formulas; twelve recorded packs are adapted from the MIT-licensed [kbsim](https://github.com/tplai/kbsim) project. See [Third-party notices](THIRD_PARTY_NOTICES.md).
-
-## Permissions
-
-### macOS
-
-Global key monitoring requires Input Monitoring access. Open **System Settings → Privacy & Security → Input Monitoring**, enable Keytone, then restart it. Keytone preflights this permission, requests it through the system API, and shows a visible warning when it is missing.
-
-### Windows
-
-Keytone uses the native global keyboard hook exposed by its input backend. Normal applications do not require elevation; elevated target applications can be isolated by Windows privilege rules.
-
-### Linux
-
-X11 capture uses the native event facilities. On Wayland, global input availability depends on compositor policy. Device-level setups may require membership in the `input` group. Keytone never attempts to bypass desktop security policy.
-
-## Sound packs
-
-Packs are data-only folders containing a `manifest.json` and WAV samples. They cannot execute code. Explicit per-key mappings override category mappings, which override `default`.
+## Project structure
 
 ```text
-my-pack/
-├── manifest.json
-└── samples/
-    ├── press/default/01.wav
-    ├── press/space/01.wav
-    └── release/default/01.wav
+keytone/
+├── apps/
+│   ├── desktop/          # Tauri 2 + React desktop interface
+│   └── website/          # Public Vite landing page
+├── crates/
+│   ├── keytone-core/     # Settings, key model, layout
+│   ├── keytone-input/    # Global input and normalization
+│   ├── keytone-audio/    # CPAL stream and voice mixer
+│   ├── keytone-dsp/      # Real-time effects
+│   └── keytone-packs/    # Pack validation and selection
+├── packs/                # Redistributable sound packs
+├── docs/                 # Specifications and design docs
+└── tools/                # Reproducible asset tooling
 ```
-
-See the complete [Sound Pack Specification v1](docs/sound-pack-spec.md).
-
-## Creating a sound pack
-
-1. Record or synthesize WAV files you have the right to redistribute.
-2. Arrange them beneath `samples/press` and optionally `samples/release`.
-3. Create a v1 `manifest.json` with relative paths only.
-4. In Keytone, choose **Packs → Import pack** and select the folder.
-
-Malformed, missing, unsupported and path-traversing assets are rejected without taking down the engine.
-
-## Preset format
-
-Packs contain raw audio; presets contain processing choices and a pack reference. Presets are versioned JSON intended to remain shareable. See [presets.md](docs/presets.md).
-
-## Privacy
-
-Keytone processes each physical key independently and immediately discards the event after scheduling sound. It does not record typed text, construct words, persist keyboard history, transmit events, use telemetry or require a network connection. See the [privacy and threat model](docs/privacy.md).
 
 ## Performance
 
-Keytone prioritizes latency, then stability, then processing quality. A bounded lock-free queue connects input to a 64-voice callback. Development statistics report input-received → audio-event-queued scheduling time and queue drops. They do **not** claim output-device or acoustic end-to-end latency.
+Keytone prioritizes latency, then stability, then processing quality. Development statistics measure input received → audio event queued scheduling time and queue drops. They do **not** claim output-device or acoustic end-to-end latency.
 
-Hardware, driver, host buffer and operating-system scheduling determine the final perceived latency. The engine uses the device's default low-latency configuration and performs linear sample interpolation.
+Final perceived latency depends on the audio device, driver, host buffer, and operating-system scheduling. The engine requests the device's default low-latency configuration and uses linear interpolation for pitch changes.
 
 ## Roadmap
 
 - More native Wayland/libinput integration and device hotplug recovery
 - Community pack registry and CLI (`search`, `install`, `use`)
-- Sound Pack Studio for recording, segmentation and normalization
-- Compressor, saturation and convolution reverb modules
-- Optional authored/generative tools outside the real-time engine
+- Sound Pack Studio for recording, segmentation, and normalization
+- Compressor, saturation, and convolution reverb modules
+- Optional authored and generative tools outside the real-time engine
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md). Good first contributions include additional mock-backed input tests, accessibility improvements and legally clean CC0 packs.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), the developer notes in [docs/contributing.md](docs/contributing.md), and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
+
+Good first contributions include mock-backed input tests, accessibility improvements, documentation, and legally clean CC0 sound packs.
 
 ## License
 
-Keytone source is licensed under the [MIT License](LICENSE). The formula-generated demo packs are dedicated to the public domain under CC0-1.0. Recorded packs retain their upstream MIT license and attribution; see [Third-party notices](THIRD_PARTY_NOTICES.md).
-# KeyTone
+Keytone source is licensed under the [MIT License](LICENSE). Formula-generated demo packs are dedicated to the public domain under CC0-1.0. Recorded packs retain their upstream MIT license and attribution; see [Third-party notices](THIRD_PARTY_NOTICES.md).
