@@ -5,9 +5,11 @@
   "packageManager": "pnpm@10.10.0",
   "scripts": {
     "dev": "pnpm --dir apps/desktop dev",
-    "build": "pnpm --dir apps/desktop build",
-    "lint": "pnpm --dir apps/desktop lint",
-    "typecheck": "pnpm --dir apps/desktop typecheck",
-    "tauri": "pnpm --dir apps/desktop tauri"
+    "build": "pnpm --dir apps/desktop build && pnpm --dir apps/website build",
+    "lint": "pnpm --dir apps/desktop lint && pnpm --dir apps/website lint",
+    "typecheck": "pnpm --dir apps/desktop typecheck && pnpm --dir apps/website typecheck",
+    "tauri": "pnpm --dir apps/desktop tauri",
+    "web:dev": "pnpm --dir apps/website dev",
+    "web:build": "pnpm --dir apps/website build"
   }
 }

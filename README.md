@@ -56,6 +56,14 @@ pnpm install
 pnpm tauri dev
 ```
 
+The public landing page lives in `apps/website`. Run it locally with:
+
+```bash
+pnpm web:dev
+```
+
+Its platform download buttons discover the matching macOS, Windows, and Linux installer from the latest GitHub Release. Version tags matching `v*` start the cross-platform desktop release workflow, while changes to the website on `main` deploy through GitHub Pages.
+
 Checks used by CI:
 
 ```bash
