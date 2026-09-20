@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Keytone application demo placeholder">
+  <rect width="1200" height="630" fill="#0a0c0c"/>
+  <rect x="110" y="80" width="980" height="470" rx="8" fill="#111414" stroke="#2b302e"/>
+  <path d="M165 390h120l22-82 36 155 35-210 40 137 35-53 40 51 31-129 42 214 40-190 42 157h366" fill="none" stroke="#d9fa76" stroke-width="5" opacity=".75"/>
+  <text x="165" y="195" fill="#eef0ed" font-family="system-ui,sans-serif" font-size="68" font-weight="600">KEYTONE</text>
+  <text x="165" y="250" fill="#8b928e" font-family="system-ui,sans-serif" font-size="25">Make every keystroke sound yours.</text>
+  <circle cx="1000" cy="176" r="11" fill="#d9fa76"/>
+  <text x="973" y="220" fill="#d9fa76" font-family="monospace" font-size="14">LIVE</text>
+</svg>

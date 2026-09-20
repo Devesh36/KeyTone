@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/keytone-core",
+  "crates/keytone-input",
+  "crates/keytone-dsp",
+  "crates/keytone-packs",
+  "crates/keytone-audio",
+  "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/keytone-app/keytone"
+rust-version = "1.77"
+
+[workspace.dependencies]
+anyhow = "1.0"
+arc-swap = "1.7"
+cpal = "0.15"
+crossbeam-channel = "0.5"
+crossbeam-queue = "0.3"
+dirs = "6.0"
+hound = "3.5"
+parking_lot = "0.12"
+rand = "0.8"
+rdev = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.4", features = ["tray-icon"] }
+tauri-build = "2.1"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = "warn"

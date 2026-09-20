@@ -1,0 +1,19 @@
+[package]
+name = "keytone-input"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keytone-core = { path = "../keytone-core" }
+rdev.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-foundation = { version = "0.3", features = ["CFMachPort", "CFRunLoop"] }
+objc2-core-graphics = { version = "0.3", features = ["CGEvent", "CGEventTypes"] }
+
+[lints]
+workspace = true

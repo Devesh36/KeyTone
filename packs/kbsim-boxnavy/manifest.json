@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "kbsim-boxnavy",
+  "name": "Box Navy",
+  "author": "Thomas Lai / kbsim contributors",
+  "version": "1.0.0",
+  "description": "Heavy clicky recordings, adapted from the MIT-licensed kbsim project.",
+  "license": "MIT",
+  "tags": [
+    "heavy",
+    "clicky",
+    "recorded",
+    "kbsim"
+  ],
+  "preview": "samples/press/default/01.wav",
+  "samples": {
+    "press": {
+      "default": [
+        "samples/press/default/01.wav",
+        "samples/press/default/02.wav",
+        "samples/press/default/03.wav",
+        "samples/press/default/04.wav",
+        "samples/press/default/05.wav"
+      ],
+      "space": [
+        "samples/press/space/01.wav"
+      ],
+      "enter": [
+        "samples/press/enter/01.wav"
+      ],
+      "backspace": [
+        "samples/press/backspace/01.wav"
+      ]
+    },
+    "release": {
+      "default": [
+        "samples/release/default/01.wav"
+      ],
+      "space": [
+        "samples/release/space/01.wav"
+      ],
+      "enter": [
+        "samples/release/enter/01.wav"
+      ],
+      "backspace": [
+        "samples/release/backspace/01.wav"
+      ]
+    }
+  }
+}

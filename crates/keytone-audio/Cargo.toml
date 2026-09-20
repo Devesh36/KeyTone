@@ -1,0 +1,22 @@
+[package]
+name = "keytone-audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+arc-swap.workspace = true
+cpal.workspace = true
+crossbeam-channel.workspace = true
+crossbeam-queue.workspace = true
+keytone-core = { path = "../keytone-core" }
+keytone-dsp = { path = "../keytone-dsp" }
+keytone-packs = { path = "../keytone-packs" }
+parking_lot.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

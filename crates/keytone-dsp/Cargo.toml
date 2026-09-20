@@ -1,0 +1,12 @@
+[package]
+name = "keytone-dsp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keytone-core = { path = "../keytone-core" }
+
+[lints]
+workspace = true

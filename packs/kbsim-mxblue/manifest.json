@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "kbsim-mxblue",
+  "name": "Cherry MX Blue",
+  "author": "Thomas Lai / kbsim contributors",
+  "version": "1.0.0",
+  "description": "Standard clicky recordings, adapted from the MIT-licensed kbsim project.",
+  "license": "MIT",
+  "tags": [
+    "standard",
+    "clicky",
+    "recorded",
+    "kbsim"
+  ],
+  "preview": "samples/press/default/01.wav",
+  "samples": {
+    "press": {
+      "default": [
+        "samples/press/default/01.wav",
+        "samples/press/default/02.wav",
+        "samples/press/default/03.wav",
+        "samples/press/default/04.wav",
+        "samples/press/default/05.wav"
+      ]
+    },
+    "release": {
+      "default": [
+        "samples/release/default/01.wav"
+      ]
+    }
+  }
+}
