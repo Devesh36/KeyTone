@@ -43,6 +43,22 @@ Choose your platform at the [latest GitHub release](https://github.com/Devesh36/
 | Windows | [64-bit MSI](https://github.com/Devesh36/KeyTone/releases/latest) | Windows 10+ |
 | Linux | [64-bit AppImage](https://github.com/Devesh36/KeyTone/releases/latest) | Modern x86_64 distribution |
 
+### Install from the command line
+
+On macOS or Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Devesh36/KeyTone/main/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Devesh36/KeyTone/main/install.ps1 | iex
+```
+
+The scripts resolve the latest GitHub release at install time. On Linux, the installer uses a native Debian or RPM package when supported and otherwise installs the AppImage in the user's local binary directory. You can [review `install.sh`](install.sh) or [review `install.ps1`](install.ps1) before running either command.
+
 ### Opening Keytone on macOS
 
 > [!IMPORTANT]
